@@ -1,0 +1,5 @@
+{
+  "name": "BubbleMapper - Game Sitemap Builder",
+  "description": "An interactive node-based editor for designing and previewing videogame screen flows and storyboards.",
+  "requestFramePermissions": []
+}
