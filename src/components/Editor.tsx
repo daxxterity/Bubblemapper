@@ -42,8 +42,33 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
 }, ref) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number, isAdding: boolean } | null>(null);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        if (!isSpacePressed) {
+          setIsSpacePressed(true);
+        }
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        setIsSpacePressed(false);
+      }
+    };
+    const handleBlur = () => setIsSpacePressed(false);
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, [isSpacePressed]);
 
   useImperativeHandle(ref, () => ({
     getViewportCenter: () => {
@@ -170,6 +195,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   };
 
   const handleStageMouseDown = (e: any) => {
+    if (isSpacePressed) return;
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty) {
       const stage = stageRef.current;
@@ -247,16 +273,28 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full" style={{ cursor: isSpacePressed ? 'grab' : 'default' }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}
-        draggable={!selectionBox}
+        draggable={isSpacePressed}
         ref={stageRef}
         onWheel={handleWheel}
         onMouseMove={handleStageMouseMove}
         onMouseDown={handleStageMouseDown}
         onMouseUp={handleStageMouseUp}
+        onDragStart={(e) => {
+          if (e.target === e.target.getStage()) {
+            const container = e.target.getStage()?.container();
+            if (container) container.style.cursor = 'grabbing';
+          }
+        }}
+        onDragEnd={(e) => {
+          if (e.target === e.target.getStage()) {
+            const container = e.target.getStage()?.container();
+            if (container) container.style.cursor = isSpacePressed ? 'grab' : 'default';
+          }
+        }}
       >
         <Layer>
           {renderConnections()}

@@ -334,7 +334,7 @@ export default function App() {
         prev.includes(nodeId) ? prev.filter(id => id !== nodeId) : [...prev, nodeId]
       );
     } else {
-      setSelectedNodeIds([nodeId]);
+      setSelectedNodeIds(prev => prev.includes(nodeId) ? prev : [nodeId]);
     }
   };
 
