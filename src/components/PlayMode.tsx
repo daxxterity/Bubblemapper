@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { NodeData, TemplateType, NodeType, Tip } from '../types';
-import { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, Clock, Hand } from 'lucide-react';
+import { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, Clock, Hand, RefreshCw } from 'lucide-react';
 
 interface PlayModeProps {
   nodes: NodeData[];
@@ -12,6 +12,7 @@ interface PlayModeProps {
 
 const ImageCarousel = ({ urls, getProcessedImageUrl }: { urls: string[], getProcessedImageUrl: (url: string) => string }) => {
   const [index, setIndex] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   if (urls.length === 0) return null;
 
@@ -25,11 +26,16 @@ const ImageCarousel = ({ urls, getProcessedImageUrl }: { urls: string[], getProc
     setIndex((prev) => (prev - 1 + urls.length) % urls.length);
   };
 
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRefreshKey(prev => prev + 1);
+  };
+
   return (
     <div className="relative w-full h-full group">
       <AnimatePresence mode="wait">
         <motion.img 
-          key={index}
+          key={`${index}-${refreshKey}`}
           src={getProcessedImageUrl(urls[index])} 
           alt={`Image ${index + 1}`} 
           initial={{ opacity: 0 }}
@@ -43,6 +49,15 @@ const ImageCarousel = ({ urls, getProcessedImageUrl }: { urls: string[], getProc
         />
       </AnimatePresence>
       
+      {/* Refresh Button */}
+      <button 
+        onClick={handleRefresh}
+        className="absolute top-6 left-6 z-20 p-2 bg-slate-900/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-900 border border-white/10"
+        title="Refresh Image"
+      >
+        <RefreshCw className="w-4 h-4" />
+      </button>
+
       {urls.length > 1 && (
         <>
           <button 
@@ -171,6 +186,17 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
   };
 
   if (!node || node.type === NodeType.BACK) return null;
+
+  // Preloading logic: Find all images in nodes reachable from the current node
+  const nextNodeIds = node.choices
+    .map(c => c.targetNodeId)
+    .filter((id): id is string => !!id);
+  
+  const preloadUrls = nodes
+    .filter(n => nextNodeIds.includes(n.id))
+    .flatMap(n => n.imageUrls && n.imageUrls.length > 0 ? n.imageUrls : [n.imageUrl])
+    .filter(url => !!url)
+    .map(url => getProcessedImageUrl(url));
 
   const renderTemplate = () => {
     const sidebarChoices = node.choices
@@ -473,6 +499,13 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
             {renderTemplate()}
           </motion.div>
         </AnimatePresence>
+
+        {/* Hidden Preloader */}
+        <div className="hidden" aria-hidden="true">
+          {preloadUrls.map((url, i) => (
+            <img key={`${url}-${i}`} src={url} referrerPolicy="no-referrer" />
+          ))}
+        </div>
 
         {/* Tips Bar */}
         {node.tips && node.tips.length > 0 && node.template !== TemplateType.CINEMATIC && (
