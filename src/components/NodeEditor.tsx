@@ -1,4 +1,17 @@
 import React, { useState } from 'react';
+
+// Helper to handle Google Drive links and other common image issues
+const getProcessedImageUrl = (url: string) => {
+  if (!url) return 'https://picsum.photos/seed/placeholder/800/600';
+  
+  // Handle Google Drive links by converting to direct download/thumbnail links
+  const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([^\/&?]+)/);
+  if (driveMatch) {
+    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1600`;
+  }
+  
+  return url;
+};
 import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { 
   Settings2, Trash2, RotateCcw, Gamepad2, Gem, Trophy, 
@@ -191,8 +204,22 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ selectedNode, onUpdateNo
               className="bg-slate-800/30 border border-slate-700 rounded-xl overflow-hidden group/img"
             >
               <div className="p-3 space-y-3">
-                <div className="flex items-center gap-2">
-                  <GripVertical className="w-4 h-4 text-slate-600 cursor-grab active:cursor-grabbing" />
+                <div className="flex items-center gap-3">
+                  <GripVertical className="w-4 h-4 text-slate-600 cursor-grab active:cursor-grabbing shrink-0" />
+                  
+                  {/* Thumbnail Preview */}
+                  <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 shrink-0 shadow-inner">
+                    <img 
+                      src={getProcessedImageUrl(url)} 
+                      alt="Thumbnail" 
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/error/100/100';
+                      }}
+                    />
+                  </div>
+
                   <div className="relative flex-1">
                     <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                     <input 
@@ -555,7 +582,7 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ selectedNode, onUpdateNo
       </div>
 
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-900/20">
+      <div className="flex-1 overflow-y-auto p-6 pb-24 custom-scrollbar bg-slate-900/20">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
