@@ -5,7 +5,7 @@ export enum TemplateType {
   SIDE_IMAGE = 'SIDE_IMAGE',
   ONLY_TEXT = 'ONLY_TEXT',
   CINEMATIC = 'CINEMATIC',
-  MAP = 'MAP',
+  MULTI_LINK = 'MULTI_LINK',
 }
 
 export enum NodeType {
@@ -41,6 +41,7 @@ export interface NodeData {
   content: string;
   imageUrl: string;
   imageUrls?: string[];
+  imageCaptions?: string[];
   choices: Choice[];
   tips?: Tip[];
   template: TemplateType;

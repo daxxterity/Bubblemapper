@@ -10,7 +10,7 @@ interface PlayModeProps {
   onClose: () => void;
 }
 
-const ImageCarousel = ({ urls, getProcessedImageUrl }: { urls: string[], getProcessedImageUrl: (url: string) => string }) => {
+const ImageCarousel = ({ urls, captions, getProcessedImageUrl }: { urls: string[], captions?: string[], getProcessedImageUrl: (url: string) => string }) => {
   const [index, setIndex] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -34,19 +34,28 @@ const ImageCarousel = ({ urls, getProcessedImageUrl }: { urls: string[], getProc
   return (
     <div className="relative w-full h-full group">
       <AnimatePresence mode="wait">
-        <motion.img 
+        <motion.div 
           key={`${index}-${refreshKey}`}
-          src={getProcessedImageUrl(urls[index])} 
-          alt={`Image ${index + 1}`} 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/error/800/600';
-          }}
-        />
+          className="w-full h-full relative"
+        >
+          <img 
+            src={getProcessedImageUrl(urls[index])} 
+            alt={`Image ${index + 1}`} 
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/error/800/600';
+            }}
+          />
+          {captions && captions[index] && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
+              <p className="text-white text-sm font-medium drop-shadow-md">{captions[index]}</p>
+            </div>
+          )}
+        </motion.div>
       </AnimatePresence>
       
       {/* Refresh Button */}
@@ -226,7 +235,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
           onClick={() => choice.targetNodeId && handleNavigate(choice.targetNodeId)}
           className={`flex items-center justify-between p-4 rounded-lg border transition-all ${
             choice.targetNodeId 
-              ? node.template === TemplateType.TOP_IMAGE || node.template === TemplateType.MAP
+              ? node.template === TemplateType.TOP_IMAGE || node.template === TemplateType.MULTI_LINK
                 ? 'border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-100 cursor-pointer'
                 : 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-100 cursor-pointer'
               : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-not-allowed'
@@ -266,9 +275,11 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
             </div>
           )}
           {node.screenID && (
-            <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isFloating ? 'text-white/70 drop-shadow-md' : 'text-slate-500'}`}>
-              {node.screenID}
-            </span>
+            <div className={`px-3 py-1 rounded-full border ${isFloating ? 'bg-slate-900/80 backdrop-blur-md border-white/20 shadow-lg' : 'bg-slate-100 border-slate-200'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-[0.2em] ${isFloating ? 'text-white' : 'text-slate-500'}`}>
+                {node.screenID}
+              </span>
+            </div>
           )}
         </div>
       );
@@ -296,6 +307,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
           <div className="flex-1 min-h-[200px] relative">
             <ImageCarousel 
               urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
+              captions={node.imageCaptions}
               getProcessedImageUrl={getProcessedImageUrl}
             />
           </div>
@@ -318,6 +330,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
           <div className="flex-1 relative bg-black overflow-hidden">
             <ImageCarousel 
               urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
+              captions={node.imageCaptions}
               getProcessedImageUrl={getProcessedImageUrl}
             />
           </div>
@@ -361,7 +374,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
       );
     }
 
-    if (node.template === TemplateType.MAP) {
+    if (node.template === TemplateType.MULTI_LINK) {
       return (
         <div className="flex flex-col h-full bg-slate-900 overflow-hidden relative">
           {/* Top Section: Sidebar + Image */}
@@ -369,7 +382,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
             {/* Sidebar (1/4) */}
             <div className="w-1/4 border-r border-slate-800 flex flex-col bg-slate-900/50">
               <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Map Locations</h2>
+                <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Links</h2>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
                 {sidebarChoices.length > 0 ? sidebarChoices : (
@@ -386,6 +399,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
                 {renderHeader("top-4 left-4", true)}
                 <ImageCarousel 
                   urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
+                  captions={node.imageCaptions}
                   getProcessedImageUrl={getProcessedImageUrl}
                 />
               </div>
@@ -426,6 +440,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
         <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-800 hidden lg:block">
           <ImageCarousel 
             urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
+            captions={node.imageCaptions}
             getProcessedImageUrl={getProcessedImageUrl}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent pointer-events-none" />

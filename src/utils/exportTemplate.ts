@@ -13,6 +13,12 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BubbleMapper Play Flow</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Suppress Tailwind production warning
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && window.location.hostname !== '') {
+            window.tailwind = { config: { } };
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; margin: 0; overflow: hidden; }
@@ -56,13 +62,13 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
         import * as FramerMotion from 'https://esm.sh/framer-motion@11.11.11?deps=react@18.2.0';
         import * as LucideReact from 'https://esm.sh/lucide-react?deps=react@18.2.0';
 
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useMemo } = React;
         const { createRoot } = ReactDOMClient;
         const { motion, AnimatePresence } = FramerMotion;
-        const { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap } = LucideReact;
+        const { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, RefreshCw } = LucideReact;
 
         const NodeType = { STORY: 'STORY', BACK: 'BACK', LEVEL: 'LEVEL', ARTEFACT: 'ARTEFACT', SUCCESS: 'SUCCESS' };
-        const TemplateType = { TOP_IMAGE: 'TOP_IMAGE', SIDE_IMAGE: 'SIDE_IMAGE', ONLY_TEXT: 'ONLY_TEXT', CINEMATIC: 'CINEMATIC', MAP: 'MAP' };
+        const TemplateType = { TOP_IMAGE: 'TOP_IMAGE', SIDE_IMAGE: 'SIDE_IMAGE', ONLY_TEXT: 'ONLY_TEXT', CINEMATIC: 'CINEMATIC', MULTI_LINK: 'MULTI_LINK' };
         
         const storyData = ${storyData};
         const nodes = storyData.nodes;
@@ -75,6 +81,29 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
             const [timeLeft, setTimeLeft] = useState(null);
             
             const node = nodes.find(n => n.id === currentNodeId);
+
+            // Preloading logic
+            useEffect(() => {
+                if (!node) return;
+                const neighborIds = node.choices
+                    .map(c => c.targetNodeId)
+                    .filter(id => id && id !== currentNodeId);
+                
+                neighborIds.forEach(id => {
+                    const neighborNode = nodes.find(n => n.id === id);
+                    if (neighborNode) {
+                        const urls = neighborNode.imageUrls && neighborNode.imageUrls.length > 0 
+                            ? neighborNode.imageUrls 
+                            : [neighborNode.imageUrl];
+                        urls.forEach(url => {
+                            if (url) {
+                                const img = new Image();
+                                img.src = getProcessedImageUrl(url);
+                            }
+                        });
+                    }
+                });
+            }, [currentNodeId]);
 
             // Handle Tip Timer
             useEffect(() => {
@@ -103,6 +132,7 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
 
             const ImageCarousel = ({ urls }) => {
                 const [index, setIndex] = useState(0);
+                const [refreshKey, setRefreshKey] = useState(0);
                 if (!urls || urls.length === 0) return null;
 
                 const next = (e) => {
@@ -115,10 +145,15 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                     setIndex((prev) => (prev - 1 + urls.length) % urls.length);
                 };
 
+                const handleRefresh = (e) => {
+                    e.stopPropagation();
+                    setRefreshKey(prev => prev + 1);
+                };
+
                 return React.createElement('div', { className: 'relative w-full h-full group' },
                     React.createElement(AnimatePresence, { mode: 'wait' },
                         React.createElement(motion.img, {
-                            key: index,
+                            key: \`\${index}-\${refreshKey}\`,
                             src: getProcessedImageUrl(urls[index]),
                             alt: 'Image ' + (index + 1),
                             initial: { opacity: 0 },
@@ -129,6 +164,11 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                             onError: (e) => { e.target.src = 'https://picsum.photos/seed/error/800/600'; }
                         })
                     ),
+                    React.createElement('button', {
+                        onClick: handleRefresh,
+                        className: 'absolute top-4 left-4 p-2 bg-slate-900/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-900 border border-white/10 z-20',
+                        title: 'Refresh Image'
+                    }, React.createElement(RefreshCw, { className: 'w-4 h-4' })),
                     urls.length > 1 && React.createElement(React.Fragment, null,
                         React.createElement('button', {
                             onClick: prev,
@@ -207,7 +247,9 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                         node.type === NodeType.SUCCESS && React.createElement('div', { className: \`flex items-center gap-2 px-3 py-1 rounded-full border \${isFloating ? 'bg-red-500/80 backdrop-blur-md border-red-400/50 shadow-lg' : 'bg-red-500/20 border-red-500/30'}\` },
                             React.createElement('span', { className: \`text-[10px] font-bold uppercase tracking-widest \${isFloating ? 'text-white' : 'text-red-400'}\` }, 'Victory')
                         ),
-                        node.screenID && React.createElement('span', { className: \`text-[10px] font-bold uppercase tracking-[0.2em] \${isFloating ? 'text-white/70 drop-shadow-md' : 'text-slate-500'}\` }, node.screenID)
+                        node.screenID && React.createElement('div', { className: \`px-3 py-1 rounded-full border \${isFloating ? 'bg-slate-900/80 backdrop-blur-md border-white/20 shadow-lg' : 'bg-slate-100 border-slate-200'}\` }, 
+                            React.createElement('span', { className: \`text-[10px] font-bold uppercase tracking-[0.2em] \${isFloating ? 'text-white' : 'text-slate-500'}\` }, node.screenID)
+                        )
                     );
                 };
 
@@ -237,7 +279,7 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                             onClick: () => choice.targetNodeId && handleNavigate(choice.targetNodeId),
                             className: \`flex items-center justify-between p-4 rounded-lg border transition-all \${
                                 choice.targetNodeId 
-                                    ? node.template === TemplateType.TOP_IMAGE || node.template === TemplateType.MAP
+                                    ? node.template === TemplateType.TOP_IMAGE || node.template === TemplateType.MULTI_LINK
                                         ? 'border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-100 cursor-pointer'
                                         : node.template === TemplateType.ONLY_TEXT
                                             ? 'border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-100 cursor-pointer'
@@ -294,7 +336,7 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                                     key: tip.id,
                                     onClick: () => setActiveTip(tip),
                                     title: tip.trigger,
-                                    className: \`p-2 rounded-lg transition-all relative group \${activeTip?.id === tip.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}\`
+                                    className: \`p-2 rounded-lg transition-all relative group \${activeTip && activeTip.id === tip.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}\`
                                 }, 
                                 tip.type === 'TIP' && React.createElement(MessageSquare, { className: 'w-4 h-4' }),
                                 tip.type === 'POPUP' && React.createElement(AlertTriangle, { className: 'w-4 h-4' }),
@@ -309,12 +351,12 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                     );
                 }
 
-                if (node.template === TemplateType.MAP) {
+                if (node.template === TemplateType.MULTI_LINK) {
                     return React.createElement('div', { className: 'flex flex-col h-full bg-slate-900 overflow-hidden relative' },
                         React.createElement('div', { className: 'flex flex-1 min-h-0' },
                             React.createElement('div', { className: 'w-1/4 border-r border-slate-800 flex flex-col bg-slate-900/50' },
                                 React.createElement('div', { className: 'p-6 border-b border-slate-800' },
-                                    React.createElement('h2', { className: 'text-[10px] font-bold uppercase tracking-widest text-slate-500' }, 'Map Locations')
+                                    React.createElement('h2', { className: 'text-[10px] font-bold uppercase tracking-widest text-slate-500' }, 'Links')
                                 ),
                                 React.createElement('div', { className: 'flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar' },
                                     sidebarChoices.length > 0 ? sidebarChoices : React.createElement('div', { className: 'py-8 text-center' },
@@ -396,7 +438,7 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                             key: tip.id,
                             onClick: () => setActiveTip(tip),
                             title: tip.trigger,
-                            className: \`p-2 rounded-lg transition-all relative group \${activeTip?.id === tip.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}\`
+                            className: \`p-2 rounded-lg transition-all relative group \${activeTip && activeTip.id === tip.id ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'}\`
                         }, 
                         tip.type === 'TIP' && React.createElement(MessageSquare, { className: 'w-4 h-4' }),
                         tip.type === 'POPUP' && React.createElement(AlertTriangle, { className: 'w-4 h-4' }),
@@ -450,7 +492,7 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                     )
                     ))
                 )
-                ))
+                )
             );
         };
 
