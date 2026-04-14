@@ -99,6 +99,9 @@ export default function App() {
   const [pendingConnection, setPendingConnection] = useState<{ nodeId: string, choiceId: string } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [savePassword, setSavePassword] = useState('');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [importText, setImportText] = useState('');
   const [importError, setImportError] = useState<string | null>(null);
   const [isAddNodeDropdownOpen, setIsAddNodeDropdownOpen] = useState(false);
@@ -169,9 +172,17 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [pendingConnection, isImportModalOpen, selectedNodeIds, handleDeleteSelectedNodes, handleDuplicateSelectedNodes]);
 
-  useEffect(() => {
-    localStorage.setItem('bubblemapper-project', JSON.stringify(state));
-  }, [state]);
+  const handleSave = () => {
+    if (savePassword === 'runneth') {
+      localStorage.setItem('bubblemapper-project', JSON.stringify(state));
+      setIsSaveModalOpen(false);
+      setSavePassword('');
+      setSaveError(null);
+      // Optional: show a success message or toast
+    } else {
+      setSaveError('Incorrect password');
+    }
+  };
 
   const handleMouseMove = useCallback((e: any) => {
     if (pendingConnection) {
@@ -570,6 +581,13 @@ export default function App() {
 
         <div className="flex items-center gap-3">
           <button 
+            onClick={() => setIsSaveModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all shadow-lg shadow-emerald-600/20 font-medium"
+          >
+            <Save className="w-4 h-4" />
+            <span>Save</span>
+          </button>
+          <button 
             onClick={() => setIsImportModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-slate-300"
           >
@@ -868,6 +886,83 @@ export default function App() {
           </motion.div>
         </div>
       </main>
+
+      {/* Save Modal */}
+      <AnimatePresence>
+        {isSaveModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+                    <Save className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-xl font-bold">Save Project</h2>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsSaveModalOpen(false);
+                    setSavePassword('');
+                    setSaveError(null);
+                  }}
+                  className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-500"
+                >
+                  <CloseIcon className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <p className="text-slate-400 text-sm">
+                  Enter the password to save your changes and overwrite the previous version.
+                </p>
+                
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Password</label>
+                  <input 
+                    type="password"
+                    value={savePassword}
+                    onChange={(e) => setSavePassword(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                    autoFocus
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-mono"
+                    placeholder="Enter password..."
+                  />
+                  {saveError && (
+                    <div className="flex items-center gap-2 text-red-400 text-xs mt-2 bg-red-400/10 p-2 rounded-lg border border-red-400/20">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      <span>{saveError}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-6 bg-slate-900/50 border-t border-slate-800 flex gap-3">
+                <button 
+                  onClick={() => {
+                    setIsSaveModalOpen(false);
+                    setSavePassword('');
+                    setSaveError(null);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-colors font-bold text-sm border border-slate-700"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSave}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-all shadow-lg shadow-emerald-600/20 font-bold text-sm"
+                >
+                  Confirm Save
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Import Modal */}
       <AnimatePresence>
