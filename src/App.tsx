@@ -671,7 +671,13 @@ export default function App() {
               </div>
             ) : (
               <button 
-                onClick={() => signIn()}
+                onClick={async () => {
+                  try {
+                    await signIn();
+                  } catch (err) {
+                    console.error("Failed to sign in:", err);
+                  }
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-slate-300"
               >
                 <LogIn className="w-4 h-4" />

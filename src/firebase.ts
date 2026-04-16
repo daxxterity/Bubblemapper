@@ -32,6 +32,7 @@ const dbId = firebaseConfig.firestoreDatabaseId === '(default)' || !firebaseConf
   : firebaseConfig.firestoreDatabaseId;
 export const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // Connection Test
 async function testConnection() {
@@ -47,7 +48,20 @@ async function testConnection() {
 testConnection();
 
 // Auth Helpers
-export const signIn = () => signInWithPopup(auth, googleProvider);
+export const signIn = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result;
+  } catch (error: any) {
+    console.error("Sign-in error:", error);
+    if (error.code === 'auth/popup-closed-by-user') {
+      console.warn("Popup closed by user before finishing.");
+    } else if (error.code === 'auth/unauthorized-domain') {
+      console.error("Unauthorized domain. Please add this domain to your Firebase Console Authorized Domains list.");
+    }
+    throw error;
+  }
+};
 export const signOut = () => auth.signOut();
 
 // Error Handler with Monitor Integration and Standardized JSON Format
