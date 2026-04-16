@@ -10,6 +10,7 @@ import { RecoveryModal } from './components/RecoveryModal';
 import { ProjectModal } from './components/ProjectModal';
 import { ProjectBrowserModal } from './components/ProjectBrowserModal';
 import { NameModal } from './components/NameModal';
+import { PerformanceMonitor } from './components/PerformanceMonitor';
 import { NodeData, Connection, ProjectState, INITIAL_STATE, TemplateType, Choice, NodeType, Tip, TipType } from './types';
 import { generateHTML } from './utils/exportTemplate';
 import { FirestoreMonitor } from './components/FirestoreMonitor';
@@ -1244,6 +1245,8 @@ export default function App() {
           <span>{state.connections.length} Connections</span>
         </div>
       </footer>
+
+      <PerformanceMonitor />
     </div>
   );
 }
