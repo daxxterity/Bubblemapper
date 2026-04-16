@@ -43,6 +43,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number, isAdding: boolean } | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isMiddleMouseDown, setIsMiddleMouseDown] = useState(false);
+  const lastPosRef = useRef<{ x: number, y: number } | null>(null);
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -60,13 +62,27 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       }
     };
     const handleBlur = () => setIsSpacePressed(false);
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      if (e.button === 1) {
+        setIsMiddleMouseDown(false);
+        lastPosRef.current = null;
+        const stage = stageRef.current;
+        if (stage) {
+          const container = stage.container();
+          if (container) container.style.cursor = isSpacePressed ? 'grab' : 'default';
+        }
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', handleBlur);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
   }, [isSpacePressed]);
 
@@ -195,6 +211,19 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   };
 
   const handleStageMouseDown = (e: any) => {
+    // Middle mouse button (button 1)
+    if (e.evt.button === 1) {
+      e.evt.preventDefault();
+      setIsMiddleMouseDown(true);
+      const stage = stageRef.current;
+      if (stage) {
+        lastPosRef.current = stage.getPointerPosition();
+        const container = stage.container();
+        if (container) container.style.cursor = 'grabbing';
+      }
+      return;
+    }
+
     if (isSpacePressed) return;
     const clickedOnEmpty = e.target === e.target.getStage();
     if (clickedOnEmpty) {
@@ -221,6 +250,26 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const handleStageMouseMove = (e: any) => {
     onMouseMove(e);
     
+    if (isMiddleMouseDown) {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const pos = stage.getPointerPosition();
+      if (!pos || !lastPosRef.current) return;
+
+      const dx = pos.x - lastPosRef.current.x;
+      const dy = pos.y - lastPosRef.current.y;
+
+      stage.position({
+        x: stage.x() + dx,
+        y: stage.y() + dy
+      });
+
+      lastPosRef.current = pos;
+      stage.batchDraw();
+      return;
+    }
+
     if (selectionBox) {
       const stage = stageRef.current;
       const pos = stage.getPointerPosition();
@@ -233,7 +282,18 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     }
   };
 
-  const handleStageMouseUp = () => {
+  const handleStageMouseUp = (e: any) => {
+    if (isMiddleMouseDown) {
+      setIsMiddleMouseDown(false);
+      lastPosRef.current = null;
+      const stage = stageRef.current;
+      if (stage) {
+        const container = stage.container();
+        if (container) container.style.cursor = isSpacePressed ? 'grab' : 'default';
+      }
+      return;
+    }
+
     if (selectionBox) {
       const x1 = Math.min(selectionBox.x1, selectionBox.x2);
       const y1 = Math.min(selectionBox.y1, selectionBox.y2);
@@ -272,8 +332,12 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     }
   };
 
+  if (dimensions.width === 0 || dimensions.height === 0) {
+    return <div ref={containerRef} className="w-full h-full" />;
+  }
+
   return (
-    <div ref={containerRef} className="w-full h-full" style={{ cursor: isSpacePressed ? 'grab' : 'default' }}>
+    <div ref={containerRef} className="w-full h-full" style={{ cursor: (isSpacePressed || isMiddleMouseDown) ? 'grab' : 'default' }}>
       <Stage
         width={dimensions.width}
         height={dimensions.height}

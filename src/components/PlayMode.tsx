@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { NodeData, TemplateType, NodeType, Tip } from '../types';
-import { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, Clock, Hand, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, Clock, Hand, RefreshCw, Sparkles, Bug, Cpu } from 'lucide-react';
 
 interface PlayModeProps {
   nodes: NodeData[];
@@ -103,6 +104,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
   const [direction, setDirection] = useState<number>(1); // 1 for forward, -1 for back
   const [activeTip, setActiveTip] = useState<Tip | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const [gremlinPage, setGremlinPage] = useState(0);
   
   const node = nodes.find((n) => n.id === currentNodeId);
 
@@ -129,7 +131,12 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
   // Reset active tip on navigation
   useEffect(() => {
     setActiveTip(null);
+    setGremlinPage(0);
   }, [currentNodeId]);
+
+  useEffect(() => {
+    setGremlinPage(0);
+  }, [activeTip?.id]);
 
   // Helper to handle Google Drive links and other common image issues
   const getProcessedImageUrl = (url: string) => {
@@ -347,13 +354,26 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
                     title={tip.trigger}
                     className={`p-2 rounded-lg transition-all relative group ${
                       activeTip?.id === tip.id 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                        ? tip.type === 'TIP' ? 'bg-blue-600 text-white' :
+                          tip.type === 'POPUP' ? 'bg-amber-600 text-white' :
+                          tip.type === 'POWERUP' ? 'bg-yellow-600 text-white' :
+                          tip.type === 'ELARA' ? 'bg-rose-600 text-white' :
+                          tip.type === 'GREMLINS' ? 'bg-lime-600 text-white' :
+                          'bg-orange-600 text-white'
+                        : tip.type === 'TIP' ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' :
+                          tip.type === 'POPUP' ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' :
+                          tip.type === 'POWERUP' ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20' :
+                          tip.type === 'ELARA' ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20' :
+                          tip.type === 'GREMLINS' ? 'bg-lime-500/10 text-lime-400 hover:bg-lime-500/20' :
+                          'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
                     }`}
                   >
                     {tip.type === 'TIP' && <MessageSquare className="w-4 h-4" />}
                     {tip.type === 'POPUP' && <AlertTriangle className="w-4 h-4" />}
                     {tip.type === 'POWERUP' && <Zap className="w-4 h-4" />}
+                    {tip.type === 'ELARA' && <Sparkles className="w-4 h-4" />}
+                    {tip.type === 'GREMLINS' && <Bug className="w-4 h-4" />}
+                    {tip.type === 'SYSTEM' && <Cpu className="w-4 h-4" />}
                     
                     {/* Tooltip */}
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-[9px] text-slate-300 rounded border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
@@ -534,13 +554,26 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
                   title={tip.trigger}
                   className={`p-2 rounded-lg transition-all relative group ${
                     activeTip?.id === tip.id 
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                      : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'
+                      ? tip.type === 'TIP' ? 'bg-blue-600 text-white' :
+                        tip.type === 'POPUP' ? 'bg-amber-600 text-white' :
+                        tip.type === 'POWERUP' ? 'bg-yellow-600 text-white' :
+                        tip.type === 'ELARA' ? 'bg-rose-600 text-white' :
+                        tip.type === 'GREMLINS' ? 'bg-lime-600 text-white' :
+                        'bg-orange-600 text-white'
+                      : tip.type === 'TIP' ? 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20' :
+                        tip.type === 'POPUP' ? 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20' :
+                        tip.type === 'POWERUP' ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20' :
+                        tip.type === 'ELARA' ? 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20' :
+                        tip.type === 'GREMLINS' ? 'bg-lime-500/10 text-lime-400 hover:bg-lime-500/20' :
+                        'bg-orange-500/10 text-orange-400 hover:bg-orange-500/20'
                   }`}
                 >
                   {tip.type === 'TIP' && <MessageSquare className="w-4 h-4" />}
                   {tip.type === 'POPUP' && <AlertTriangle className="w-4 h-4" />}
                   {tip.type === 'POWERUP' && <Zap className="w-4 h-4" />}
+                  {tip.type === 'ELARA' && <Sparkles className="w-4 h-4" />}
+                  {tip.type === 'GREMLINS' && <Bug className="w-4 h-4" />}
+                  {tip.type === 'SYSTEM' && <Cpu className="w-4 h-4" />}
                   
                   {/* Tooltip */}
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-[9px] text-slate-300 rounded border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30">
@@ -555,82 +588,180 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
         {/* Tip Overlay */}
         <AnimatePresence>
           {activeTip && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[60] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-6"
-              onClick={() => {
-                if (activeTip.duration === 'tap') setActiveTip(null);
-              }}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                onClick={(e) => e.stopPropagation()}
-                className={`max-w-md w-full bg-slate-900 rounded-2xl shadow-2xl border-2 p-8 space-y-6 text-center ${
-                  activeTip.type === 'TIP' ? 'border-blue-500 shadow-blue-500/10' :
-                  activeTip.type === 'POPUP' ? 'border-amber-500 shadow-amber-500/10' :
-                  'border-yellow-500 shadow-yellow-500/10'
-                }`}
-              >
-                <div className="flex flex-col items-center gap-4">
-                  {activeTip.type !== 'POPUP' && (
-                    <div className={`p-4 rounded-2xl ${
-                      activeTip.type === 'TIP' ? 'bg-blue-500/10 text-blue-400' :
-                      'bg-yellow-500/10 text-yellow-400'
-                    }`}>
-                      {activeTip.type === 'TIP' && <MessageSquare className="w-8 h-8" />}
-                      {activeTip.type === 'POWERUP' && <Zap className="w-8 h-8" />}
-                    </div>
-                  )}
-                  <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                    {activeTip.type === 'TIP' ? 'Notice' :
-                     activeTip.type === 'POPUP' ? '' : 'Power-up Reveal'}
-                  </h3>
-                </div>
-
-                <p className="text-xl font-medium text-slate-100 leading-relaxed">
-                  {activeTip.copy}
-                </p>
-
-                <div className="pt-4 flex flex-col items-center gap-4">
-                  {activeTip.duration === 'tap' ? (
-                    <button
-                      onClick={() => setActiveTip(null)}
-                      className="px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all font-bold text-sm border border-slate-700 shadow-lg"
-                    >
-                      Dismiss
-                    </button>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: '100%' }}
-                          animate={{ width: '0%' }}
-                          transition={{ duration: activeTip.duration as number, ease: 'linear' }}
-                          className={`h-full ${
-                            activeTip.type === 'TIP' ? 'bg-blue-500' :
-                            activeTip.type === 'POPUP' ? 'bg-amber-500' :
-                            'bg-yellow-500'
-                          }`}
-                        />
+            <>
+              {activeTip.type === 'GREMLINS' ? (
+                <motion.div
+                  initial={{ y: 50, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 50, opacity: 0 }}
+                  className="absolute bottom-40 left-0 right-0 z-[70] flex justify-center px-4 pointer-events-none"
+                >
+                  <div className="bg-black/90 backdrop-blur-md border-y border-white/5 w-full max-w-4xl h-12 flex items-center justify-center px-8 gap-6 shadow-2xl pointer-events-auto">
+                    <div className="flex items-center gap-4 text-lime-400 font-mono text-sm tracking-tight">
+                      {gremlinPage === 1 && activeTip.copy2 ? (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setGremlinPage(0); }}
+                          className="text-lime-400/40 hover:text-lime-400 transition-colors flex items-center gap-1"
+                        >
+                          <span className="text-xs font-bold">{"<<"}</span>
+                        </button>
+                      ) : null}
+                      
+                      <div className="flex items-center gap-2">
+                        <span className="text-lime-400/40">/</span>
+                        <div className="max-w-[600px] truncate">
+                          <ReactMarkdown components={{
+                            p: ({node, ...props}) => <span {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                            em: ({node, ...props}) => <em className="italic opacity-80" {...props} />
+                          }}>
+                            {gremlinPage === 1 && activeTip.copy2 ? activeTip.copy2 : activeTip.copy}
+                          </ReactMarkdown>
+                        </div>
+                        <span className="text-lime-400/40">/</span>
                       </div>
-                      <span className="text-[10px] font-mono text-slate-500">
-                        Closing in {timeLeft}s
-                      </span>
-                      <button
-                        onClick={() => setActiveTip(null)}
-                        className="text-xs text-slate-500 hover:text-slate-300 transition-colors mt-2"
-                      >
-                        Close early
-                      </button>
+
+                      {gremlinPage === 0 && activeTip.copy2 ? (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setGremlinPage(1); }}
+                          className="text-lime-400/40 hover:text-lime-400 transition-colors flex items-center gap-1"
+                        >
+                          <span className="text-xs font-bold">{">>"}</span>
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setActiveTip(null); }}
+                          className="text-lime-400/40 hover:text-lime-400 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            </motion.div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-[60] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-6"
+                  onClick={() => {
+                    if (activeTip.duration === 'tap') setActiveTip(null);
+                  }}
+                >
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className={`max-w-md w-full rounded-2xl shadow-2xl border-2 p-8 space-y-6 text-center relative ${
+                      activeTip.type === 'TIP' ? 'bg-slate-900 border-blue-500 shadow-blue-500/10' :
+                      activeTip.type === 'POPUP' ? 'bg-slate-900 border-amber-500 shadow-amber-500/10' :
+                      activeTip.type === 'POWERUP' ? 'bg-slate-900 border-yellow-500 shadow-yellow-500/10' :
+                      activeTip.type === 'ELARA' ? 'bg-[#f5f5dc] border-[#d2b48c] shadow-black/20' :
+                      'bg-black border-orange-500 shadow-orange-500/10'
+                    }`}
+                  >
+                    {/* Close button for ELARA */}
+                    {activeTip.type === 'ELARA' && (
+                      <button 
+                        onClick={() => setActiveTip(null)}
+                        className="absolute top-4 right-4 p-1 rounded-full hover:bg-black/5 text-black/50 transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+
+                    <div className="flex flex-col items-center gap-4">
+                      {activeTip.type !== 'POPUP' && (
+                        <div className={`p-4 rounded-2xl ${
+                          activeTip.type === 'TIP' ? 'bg-blue-500/10 text-blue-400' :
+                          activeTip.type === 'POWERUP' ? 'bg-yellow-500/10 text-yellow-400' :
+                          activeTip.type === 'ELARA' ? 'bg-black/5 text-black/60' :
+                          'bg-orange-500/10 text-orange-500'
+                        }`}>
+                          {activeTip.type === 'TIP' && <MessageSquare className="w-8 h-8" />}
+                          {activeTip.type === 'POWERUP' && <Zap className="w-8 h-8" />}
+                          {activeTip.type === 'ELARA' && <Sparkles className="w-8 h-8" />}
+                          {activeTip.type === 'SYSTEM' && <Cpu className="w-8 h-8" />}
+                        </div>
+                      )}
+                      <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] ${
+                        activeTip.type === 'ELARA' ? 'text-black/40' :
+                        activeTip.type === 'SYSTEM' ? 'text-orange-500/40' :
+                        'text-slate-500'
+                      }`}>
+                        {activeTip.type === 'TIP' ? 'Notice' :
+                         activeTip.type === 'POPUP' ? '' : 
+                         activeTip.type === 'POWERUP' ? 'Power-up Reveal' :
+                         activeTip.type === 'ELARA' ? 'Elara Dialogue' : 'System Alert'}
+                      </h3>
+                    </div>
+
+                    <div className={`text-xl font-medium leading-relaxed ${
+                      activeTip.type === 'ELARA' ? 'text-black font-serif' :
+                      activeTip.type === 'SYSTEM' ? 'text-orange-500 font-mono' :
+                      'text-slate-100'
+                    }`}>
+                      <ReactMarkdown components={{
+                        p: ({node, ...props}) => <span {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                        em: ({node, ...props}) => <em className="italic opacity-80" {...props} />
+                      }}>
+                        {activeTip.copy}
+                      </ReactMarkdown>
+                    </div>
+
+                    <div className="pt-4 flex flex-col items-center gap-4">
+                      {activeTip.duration === 'tap' ? (
+                        <button
+                          onClick={() => setActiveTip(null)}
+                          className={`px-8 py-3 rounded-xl transition-all font-bold text-sm border shadow-lg ${
+                            activeTip.type === 'ELARA' ? 'bg-black text-white border-black hover:bg-black/80' :
+                            activeTip.type === 'SYSTEM' ? 'bg-orange-500 text-black border-orange-500 hover:bg-orange-400' :
+                            'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                          }`}
+                        >
+                          Dismiss
+                        </button>
+                      ) : (
+                        <div className="flex flex-col items-center gap-2">
+                          <div className={`w-48 h-1 rounded-full overflow-hidden ${
+                            activeTip.type === 'ELARA' ? 'bg-black/10' : 'bg-slate-800'
+                          }`}>
+                            <motion.div 
+                              initial={{ width: '100%' }}
+                              animate={{ width: '0%' }}
+                              transition={{ duration: activeTip.duration as number, ease: 'linear' }}
+                              className={`h-full ${
+                                activeTip.type === 'TIP' ? 'bg-blue-500' :
+                                activeTip.type === 'POPUP' ? 'bg-amber-500' :
+                                activeTip.type === 'POWERUP' ? 'bg-yellow-500' :
+                                activeTip.type === 'ELARA' ? 'bg-black' :
+                                'bg-orange-500'
+                              }`}
+                            />
+                          </div>
+                          <span className={`text-[10px] font-mono ${
+                            activeTip.type === 'ELARA' ? 'text-black/40' : 'text-slate-500'
+                          }`}>
+                            Closing in {timeLeft}s
+                          </span>
+                          <button
+                            onClick={() => setActiveTip(null)}
+                            className={`text-xs transition-colors mt-2 ${
+                              activeTip.type === 'ELARA' ? 'text-black/40 hover:text-black' : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                          >
+                            Close early
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </>
           )}
         </AnimatePresence>
       </motion.div>

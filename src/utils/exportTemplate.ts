@@ -65,7 +65,7 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
         const { useState, useEffect, useMemo } = React;
         const { createRoot } = ReactDOMClient;
         const { motion, AnimatePresence } = FramerMotion;
-        const { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, RefreshCw } = LucideReact;
+        const { ArrowLeft, ArrowRight, X, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, RefreshCw, Sparkles, Bug, Cpu } = LucideReact;
 
         const NodeType = { STORY: 'STORY', BACK: 'BACK', LEVEL: 'LEVEL', ARTEFACT: 'ARTEFACT', SUCCESS: 'SUCCESS' };
         const TemplateType = { TOP_IMAGE: 'TOP_IMAGE', SIDE_IMAGE: 'SIDE_IMAGE', ONLY_TEXT: 'ONLY_TEXT', CINEMATIC: 'CINEMATIC', MULTI_LINK: 'MULTI_LINK' };
@@ -341,6 +341,9 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                                 tip.type === 'TIP' && React.createElement(MessageSquare, { className: 'w-4 h-4' }),
                                 tip.type === 'POPUP' && React.createElement(AlertTriangle, { className: 'w-4 h-4' }),
                                 tip.type === 'POWERUP' && React.createElement(Zap, { className: 'w-4 h-4' }),
+                                tip.type === 'ELARA' && React.createElement(Sparkles, { className: 'w-4 h-4' }),
+                                tip.type === 'GREMLINS' && React.createElement(Bug, { className: 'w-4 h-4' }),
+                                tip.type === 'SYSTEM' && React.createElement(Cpu, { className: 'w-4 h-4' }),
                                 React.createElement('div', { className: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-[9px] text-slate-300 rounded border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30' }, tip.trigger)
                                 ))
                             )
@@ -443,6 +446,9 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                         tip.type === 'TIP' && React.createElement(MessageSquare, { className: 'w-4 h-4' }),
                         tip.type === 'POPUP' && React.createElement(AlertTriangle, { className: 'w-4 h-4' }),
                         tip.type === 'POWERUP' && React.createElement(Zap, { className: 'w-4 h-4' }),
+                        tip.type === 'ELARA' && React.createElement(Sparkles, { className: 'w-4 h-4' }),
+                        tip.type === 'GREMLINS' && React.createElement(Bug, { className: 'w-4 h-4' }),
+                        tip.type === 'SYSTEM' && React.createElement(Cpu, { className: 'w-4 h-4' }),
                         React.createElement('div', { className: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-[9px] text-slate-300 rounded border border-slate-700 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30' }, tip.trigger)
                         ))
                     )
@@ -460,33 +466,78 @@ export const generateHTML = (state: { nodes: any[], connections: any[] }) => {
                         animate: { scale: 1, opacity: 1, y: 0 },
                         exit: { scale: 0.9, opacity: 0, y: 20 },
                         onClick: (e) => e.stopPropagation(),
-                        className: \`max-w-md w-full bg-slate-900 rounded-2xl shadow-2xl border-2 p-8 space-y-6 text-center \${activeTip.type === 'TIP' ? 'border-blue-500 shadow-blue-500/10' : activeTip.type === 'POPUP' ? 'border-amber-500 shadow-amber-500/10' : 'border-yellow-500 shadow-yellow-500/10'}\`
+                        className: \`max-w-md w-full rounded-2xl shadow-2xl border-2 p-8 space-y-6 text-center relative \${
+                            activeTip.type === 'TIP' ? 'bg-slate-900 border-blue-500 shadow-blue-500/10' : 
+                            activeTip.type === 'POPUP' ? 'bg-slate-900 border-amber-500 shadow-amber-500/10' : 
+                            activeTip.type === 'POWERUP' ? 'bg-slate-900 border-yellow-500 shadow-yellow-500/10' :
+                            activeTip.type === 'ELARA' ? 'bg-[#f5f5dc] border-[#d2b48c] shadow-black/20' :
+                            activeTip.type === 'GREMLINS' ? 'bg-black border-yellow-400/50 shadow-yellow-400/5' :
+                            'bg-black border-orange-500 shadow-orange-500/10'
+                        }\`
                     },
+                    activeTip.type === 'ELARA' && React.createElement('button', {
+                        onClick: () => setActiveTip(null),
+                        className: 'absolute top-4 right-4 p-1 rounded-full hover:bg-black/5 text-black/50 transition-colors'
+                    }, React.createElement(X, { className: 'w-5 h-5' })),
                     React.createElement('div', { className: 'flex flex-col items-center gap-4' },
-                        activeTip.type !== 'POPUP' && React.createElement('div', { className: \`p-4 rounded-2xl \${activeTip.type === 'TIP' ? 'bg-blue-500/10 text-blue-400' : 'bg-yellow-500/10 text-yellow-400'}\` },
+                        activeTip.type !== 'POPUP' && activeTip.type !== 'GREMLINS' && React.createElement('div', { className: \`p-4 rounded-2xl \${
+                            activeTip.type === 'TIP' ? 'bg-blue-500/10 text-blue-400' : 
+                            activeTip.type === 'POWERUP' ? 'bg-yellow-500/10 text-yellow-400' :
+                            activeTip.type === 'ELARA' ? 'bg-black/5 text-black/60' :
+                            'bg-orange-500/10 text-orange-500'
+                        }\` },
                             activeTip.type === 'TIP' && React.createElement(MessageSquare, { className: 'w-8 h-8' }),
-                            activeTip.type === 'POWERUP' && React.createElement(Zap, { className: 'w-8 h-8' })
+                            activeTip.type === 'POWERUP' && React.createElement(Zap, { className: 'w-8 h-8' }),
+                            activeTip.type === 'ELARA' && React.createElement(Sparkles, { className: 'w-8 h-8' }),
+                            activeTip.type === 'SYSTEM' && React.createElement(Cpu, { className: 'w-8 h-8' })
                         ),
-                        React.createElement('h3', { className: 'text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500' }, activeTip.type === 'TIP' ? 'Notice' : activeTip.type === 'POPUP' ? '' : 'Power-up Reveal')
+                        React.createElement('h3', { className: \`text-[10px] font-bold uppercase tracking-[0.2em] \${
+                            activeTip.type === 'ELARA' ? 'text-black/40' :
+                            activeTip.type === 'GREMLINS' ? 'text-yellow-400/40' :
+                            activeTip.type === 'SYSTEM' ? 'text-orange-500/40' :
+                            'text-slate-500'
+                        }\` }, 
+                            activeTip.type === 'TIP' ? 'Notice' : 
+                            activeTip.type === 'POPUP' ? '' : 
+                            activeTip.type === 'POWERUP' ? 'Power-up Reveal' :
+                            activeTip.type === 'ELARA' ? 'Elara Dialogue' :
+                            activeTip.type === 'GREMLINS' ? 'Gremlin Ticker' : 'System Alert')
                     ),
-                    React.createElement('p', { className: 'text-xl font-medium text-slate-100 leading-relaxed' }, activeTip.copy),
+                    React.createElement('p', { className: \`text-xl font-medium leading-relaxed \${
+                        activeTip.type === 'ELARA' ? 'text-black font-serif' :
+                        activeTip.type === 'GREMLINS' ? 'text-yellow-400 font-mono' :
+                        activeTip.type === 'SYSTEM' ? 'text-orange-500 font-mono' :
+                        'text-slate-100'
+                    }\` }, activeTip.copy),
                     React.createElement('div', { className: 'pt-4 flex flex-col items-center gap-4' },
                         activeTip.duration === 'tap' ? React.createElement('button', {
                             onClick: () => setActiveTip(null),
-                            className: 'px-8 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-all font-bold text-sm border border-slate-700 shadow-lg'
+                            className: \`px-8 py-3 rounded-xl transition-all font-bold text-sm border shadow-lg \${
+                                activeTip.type === 'ELARA' ? 'bg-black text-white border-black hover:bg-black/80' :
+                                activeTip.type === 'GREMLINS' ? 'bg-yellow-400 text-black border-yellow-400 hover:bg-yellow-300' :
+                                activeTip.type === 'SYSTEM' ? 'bg-orange-500 text-black border-orange-500 hover:bg-orange-400' :
+                                'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+                            }\`
                         }, 'Dismiss') : React.createElement('div', { className: 'flex flex-col items-center gap-2' },
-                            React.createElement('div', { className: 'w-48 h-1 bg-slate-800 rounded-full overflow-hidden' },
+                            React.createElement('div', { className: \`w-48 h-1 rounded-full overflow-hidden \${activeTip.type === 'ELARA' ? 'bg-black/10' : 'bg-slate-800'}\` },
                                 React.createElement(motion.div, {
                                     initial: { width: '100%' },
                                     animate: { width: '0%' },
                                     transition: { duration: activeTip.duration, ease: 'linear' },
-                                    className: \`h-full \${activeTip.type === 'TIP' ? 'bg-blue-500' : activeTip.type === 'POPUP' ? 'bg-amber-500' : 'bg-yellow-500'}\`
+                                    className: \`h-full \${
+                                        activeTip.type === 'TIP' ? 'bg-blue-500' : 
+                                        activeTip.type === 'POPUP' ? 'bg-amber-500' : 
+                                        activeTip.type === 'POWERUP' ? 'bg-yellow-500' :
+                                        activeTip.type === 'ELARA' ? 'bg-black' :
+                                        activeTip.type === 'GREMLINS' ? 'bg-yellow-400' :
+                                        'bg-orange-500'
+                                    }\`
                                 })
                             ),
-                            React.createElement('span', { className: 'text-[10px] font-mono text-slate-500' }, 'Closing in ' + timeLeft + 's'),
+                            React.createElement('span', { className: \`text-[10px] font-mono \${activeTip.type === 'ELARA' ? 'text-black/40' : 'text-slate-500'}\` }, 'Closing in ' + timeLeft + 's'),
                             React.createElement('button', {
                                 onClick: () => setActiveTip(null),
-                                className: 'text-xs text-slate-500 hover:text-slate-300 transition-colors mt-2'
+                                className: \`text-xs transition-colors mt-2 \${activeTip.type === 'ELARA' ? 'text-black/40 hover:text-black' : 'text-slate-500 hover:text-slate-300'}\`
                             }, 'Close early')
                         )
                     )

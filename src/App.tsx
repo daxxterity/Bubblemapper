@@ -1,12 +1,21 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Plus, Play, Save, Trash2, Image as ImageIcon, Link as LinkIcon, Settings2, Layout, MousePointer2, Upload, X as CloseIcon, AlertCircle, RotateCcw, Download, FileCode, Gamepad2, Gem, Trophy, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, GripVertical, Clock, Hand } from 'lucide-react';
+import { Plus, Play, Save, Trash2, Image as ImageIcon, Link as LinkIcon, Settings2, Layout, MousePointer2, Upload, X as CloseIcon, AlertCircle, RotateCcw, Download, FileCode, Gamepad2, Gem, Trophy, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, GripVertical, Clock, Hand, Activity, History, Folder } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { Editor, EditorRef } from './components/Editor';
 import { PlayMode } from './components/PlayMode';
 import { NodeEditor } from './components/NodeEditor';
+import { RecoveryModal } from './components/RecoveryModal';
+import { ProjectModal } from './components/ProjectModal';
+import { ProjectBrowserModal } from './components/ProjectBrowserModal';
+import { NameModal } from './components/NameModal';
 import { NodeData, Connection, ProjectState, INITIAL_STATE, TemplateType, Choice, NodeType, Tip, TipType } from './types';
 import { generateHTML } from './utils/exportTemplate';
+import { FirestoreMonitor } from './components/FirestoreMonitor';
+import { useMonitor } from './utils/monitor';
+import { useProject } from './contexts/ProjectContext';
+import { signIn, signOut } from './firebase';
+import { LogIn, LogOut, User as UserIcon } from 'lucide-react';
 
 // Helper to handle Google Drive links and other common image issues
 const getProcessedImageUrl = (url: string) => {
@@ -88,11 +97,21 @@ const ImageCarousel = ({ urls }: { urls: string[] }) => {
 };
 
 export default function App() {
-  const [state, setState] = useState<ProjectState>(() => {
-    const saved = localStorage.getItem('bubblemapper-project');
-    return saved ? JSON.parse(saved) : INITIAL_STATE;
-  });
+  const { user, loading, projectState, saveProject, isAuthReady, availableBackups, createProject, currentProjectId } = useProject();
+  const [state, setState] = useState<ProjectState>(projectState);
+  const [isExtrasFullscreen, setIsExtrasFullscreen] = useState(false);
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [isProjectBrowserOpen, setIsProjectBrowserOpen] = useState(false);
+  const [nameModalConfig, setNameModalConfig] = useState<{ isOpen: boolean; title: string; defaultValue: string; onConfirm: (name: string) => void } | null>(null);
   
+  // Sync local state when Firebase state changes (e.g., initial load or remote update)
+  useEffect(() => {
+    if (isAuthReady) {
+      setState(projectState);
+    }
+  }, [projectState, isAuthReady]);
+
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentPlayNodeId, setCurrentPlayNodeId] = useState<string | null>(null);
@@ -106,6 +125,29 @@ export default function App() {
   const [importError, setImportError] = useState<string | null>(null);
   const [isAddNodeDropdownOpen, setIsAddNodeDropdownOpen] = useState(false);
   const editorRef = useRef<EditorRef>(null);
+  const { toggleOpen: toggleMonitor, isOpen: isMonitorOpen } = useMonitor();
+
+  const handleSaveAs = () => {
+    setNameModalConfig({
+      isOpen: true,
+      title: 'Save Project As',
+      defaultValue: `${state.name || 'Untitled'} (Copy)`,
+      onConfirm: async (name) => {
+        await createProject(name, state);
+      }
+    });
+  };
+
+  const handleNewProject = () => {
+    setNameModalConfig({
+      isOpen: true,
+      title: 'New Project',
+      defaultValue: 'My New Project',
+      onConfirm: async (name) => {
+        await createProject(name);
+      }
+    });
+  };
 
   const handleDuplicateSelectedNodes = useCallback(() => {
     if (selectedNodeIds.length === 0) return;
@@ -172,13 +214,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [pendingConnection, isImportModalOpen, selectedNodeIds, handleDeleteSelectedNodes, handleDuplicateSelectedNodes]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (savePassword === 'runneth') {
-      localStorage.setItem('bubblemapper-project', JSON.stringify(state));
+      await saveProject(state);
       setIsSaveModalOpen(false);
       setSavePassword('');
       setSaveError(null);
-      // Optional: show a success message or toast
     } else {
       setSaveError('Incorrect password');
     }
@@ -581,35 +622,64 @@ export default function App() {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setIsSaveModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-all shadow-lg shadow-emerald-600/20 font-medium"
+            onClick={() => setIsProjectModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-all border border-slate-700 shadow-lg font-medium group"
+            title="Project Menu"
           >
-            <Save className="w-4 h-4" />
-            <span>Save</span>
+            <Folder className="w-4 h-4 text-blue-400 group-hover:scale-110 transition-transform" />
+            <span>Project</span>
           </button>
+
+          <div className="w-px h-6 bg-slate-800 mx-2" />
+          
           <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-slate-300"
+            onClick={toggleMonitor}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all border font-medium ${
+              isMonitorOpen 
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' 
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700'
+            }`}
+            title="Toggle Firestore Monitor"
           >
-            <Upload className="w-4 h-4" />
-            <span>Import</span>
+            <Activity className="w-4 h-4" />
+            <span>Monitor</span>
           </button>
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-slate-300"
-            title="Export project to JSON"
-          >
-            <Download className="w-4 h-4" />
-            <span>JSON</span>
-          </button>
-          <button 
-            onClick={handleExportHTML}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 rounded-lg transition-colors border border-blue-500/30 text-blue-300"
-            title="Export Play Flow as standalone HTML"
-          >
-            <FileCode className="w-4 h-4" />
-            <span>Export HTML</span>
-          </button>
+
+          <div className="w-px h-6 bg-slate-800 mx-2" />
+          
+          {/* Auth Section */}
+          <div className="flex items-center gap-3">
+            {user ? (
+              <div className="flex items-center gap-3 bg-slate-800/50 pl-2 pr-1 py-1 rounded-lg border border-slate-700">
+                <div className="flex items-center gap-2">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} alt={user.displayName || ''} className="w-6 h-6 rounded-full border border-slate-600" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center">
+                      <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                    </div>
+                  )}
+                  <span className="text-xs font-medium text-slate-300 hidden lg:block">{user.displayName?.split(' ')[0]}</span>
+                </div>
+                <button 
+                  onClick={() => signOut()}
+                  className="p-1.5 hover:bg-slate-700 rounded-md text-slate-500 hover:text-red-400 transition-colors"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => signIn()}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors border border-slate-700 text-slate-300"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign In</span>
+              </button>
+            )}
+          </div>
+
           <div className="w-px h-6 bg-slate-800 mx-2" />
           
           {/* Add Node Dropdown */}
@@ -805,7 +875,8 @@ export default function App() {
             initial={false}
             animate={{ 
               width: selectedNodeIds.length === 1 ? 340 : 200,
-              height: selectedNodeIds.length === 1 ? 'auto' : 48
+              height: selectedNodeIds.length === 1 ? 'auto' : 48,
+              maxHeight: selectedNodeIds.length === 1 ? 'calc(100vh - 120px)' : 48
             }}
             className="bg-slate-900/90 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl pointer-events-auto overflow-hidden flex flex-col"
           >
@@ -859,6 +930,7 @@ export default function App() {
                     selectedNode={selectedNode}
                     onUpdateNode={handleUpdateNode}
                     onDeleteNode={handleDeleteNode}
+                    onFullscreenToggle={() => setIsExtrasFullscreen(true)}
                   />
                 </motion.div>
               ) : (
@@ -886,6 +958,8 @@ export default function App() {
           </motion.div>
         </div>
       </main>
+
+      <FirestoreMonitor />
 
       {/* Save Modal */}
       <AnimatePresence>
@@ -1064,6 +1138,87 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Fullscreen Extras Modal */}
+      <AnimatePresence>
+        {isExtrasFullscreen && selectedNode && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] overflow-hidden flex flex-col"
+            >
+              <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-800/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/10 rounded-xl text-blue-400">
+                    <MessageSquare className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Manage Notices & Popups</h2>
+                    <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">{selectedNode.title}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsExtrasFullscreen(false)}
+                  className="p-3 hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-white"
+                >
+                  <CloseIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-hidden">
+                <NodeEditor 
+                  selectedNode={selectedNode}
+                  onUpdateNode={handleUpdateNode}
+                  onDeleteNode={handleDeleteNode}
+                  initialTab="extras"
+                  hideHeader
+                />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <RecoveryModal 
+        isOpen={isRecoveryModalOpen} 
+        onClose={() => setIsRecoveryModalOpen(false)} 
+      />
+
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+        onSave={() => setIsSaveModalOpen(true)}
+        onSaveAs={handleSaveAs}
+        onOpen={() => setIsProjectBrowserOpen(true)}
+        onImport={() => setIsImportModalOpen(true)}
+        onExportJSON={handleExport}
+        onExportHTML={handleExportHTML}
+        onRecovery={() => setIsRecoveryModalOpen(true)}
+        hasBackups={availableBackups.guest || availableBackups.local}
+      />
+
+      <ProjectBrowserModal
+        isOpen={isProjectBrowserOpen}
+        onClose={() => setIsProjectBrowserOpen(false)}
+        onNewProject={handleNewProject}
+      />
+
+      {nameModalConfig && (
+        <NameModal
+          isOpen={nameModalConfig.isOpen}
+          title={nameModalConfig.title}
+          defaultValue={nameModalConfig.defaultValue}
+          onClose={() => setNameModalConfig(null)}
+          onConfirm={nameModalConfig.onConfirm}
+        />
+      )}
 
       {/* Footer / Status */}
       <footer className="h-8 border-t border-slate-800 bg-slate-900 px-4 flex items-center justify-between text-[10px] font-mono text-slate-500">

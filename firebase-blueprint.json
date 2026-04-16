@@ -1,0 +1,23 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Project",
+      "description": "A BubbleMapper project containing nodes and connections.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the project." },
+        "ownerUid": { "type": "string", "description": "The UID of the project owner." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp." },
+        "nodes": { "type": "array", "description": "List of nodes in the project." },
+        "connections": { "type": "array", "description": "List of connections in the project." }
+      },
+      "required": ["name", "ownerUid", "updatedAt", "nodes", "connections"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Main project document storing the full state."
+    }
+  }
+}

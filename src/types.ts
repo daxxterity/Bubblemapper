@@ -23,14 +23,16 @@ export interface Choice {
   position?: 'sidebar' | 'bottom';
 }
 
-export type TipType = 'TIP' | 'POPUP' | 'POWERUP';
+export type TipType = 'TIP' | 'POPUP' | 'POWERUP' | 'ELARA' | 'GREMLINS' | 'SYSTEM';
 
 export interface Tip {
   id: string;
   type: TipType;
   copy: string;
+  copy2?: string;
   trigger: string;
   duration: number | 'tap';
+  isExpanded?: boolean;
 }
 
 export interface NodeData {
@@ -58,11 +60,14 @@ export interface Connection {
 }
 
 export interface ProjectState {
+  id?: string;
+  name?: string;
   nodes: NodeData[];
   connections: Connection[];
 }
 
 export const INITIAL_STATE: ProjectState = {
+  name: 'Untitled Project',
   nodes: [
     {
       id: 'start-node',
