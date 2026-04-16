@@ -9,6 +9,8 @@ interface NodeComponentProps {
   onSelect: (node: NodeData, shiftKey: boolean) => void;
   onStartConnection: (nodeId: string, choiceId: string) => void;
   onEndConnection: (nodeId: string) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 const NodeComponent = memo(({ 
@@ -17,7 +19,9 @@ const NodeComponent = memo(({
   onMove, 
   onSelect, 
   onStartConnection, 
-  onEndConnection 
+  onEndConnection,
+  onDragStart,
+  onDragEnd
 }: NodeComponentProps) => {
   const isBack = node.type === NodeType.BACK;
   const isLevel = node.type === NodeType.LEVEL;
@@ -38,6 +42,8 @@ const NodeComponent = memo(({
       x={node.x}
       y={node.y}
       draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onDragMove={(e) => {
         onMove(node.id, e.target.x(), e.target.y());
       }}
@@ -211,7 +217,6 @@ interface EditorProps {
   onEndConnection: (nodeId: string) => void;
   selectedNodeIds: string[];
   pendingConnection: { nodeId: string, choiceId: string } | null;
-  mousePos: { x: number, y: number };
   onMouseMove: (e: any) => void;
   onStageClick: (x: number, y: number) => void;
 }
@@ -232,7 +237,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   onEndConnection,
   selectedNodeIds,
   pendingConnection,
-  mousePos,
   onMouseMove,
   onStageClick,
 }, ref) => {
@@ -240,6 +244,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number, isAdding: boolean } | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMiddleMouseDown, setIsMiddleMouseDown] = useState(false);
+  const [isInteracting, setIsInteracting] = useState(false);
   const [localMousePos, setLocalMousePos] = useState({ x: 0, y: 0 });
   const lastPosRef = useRef<{ x: number, y: number } | null>(null);
   const stageRef = useRef<any>(null);
@@ -319,20 +324,25 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
   const renderConnections = useMemo(() => {
-    const lines = connections.map((conn) => {
-      const fromNode = nodeMap.get(conn.fromNodeId);
-      const toNode = nodeMap.get(conn.toNodeId);
-      if (!fromNode || !toNode) return null;
+    const lines = [];
+    
+    // Phase 1: Optimization - Only render static connections if NOT interacting
+    if (!isInteracting) {
+      connections.forEach((conn) => {
+        const fromNode = nodeMap.get(conn.fromNodeId);
+        const toNode = nodeMap.get(conn.toNodeId);
+        if (!fromNode || !toNode) return;
 
-      return (
-        <ConnectionLine 
-          key={conn.id} 
-          conn={conn} 
-          fromNode={fromNode} 
-          toNode={toNode} 
-        />
-      );
-    });
+        lines.push(
+          <ConnectionLine 
+            key={conn.id} 
+            conn={conn} 
+            fromNode={fromNode} 
+            toNode={toNode} 
+          />
+        );
+      });
+    }
 
     if (pendingConnection) {
       const fromNode = nodeMap.get(pendingConnection.nodeId);
@@ -364,7 +374,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     }
 
     return lines;
-  }, [connections, nodeMap, pendingConnection, localMousePos, stageRef.current]);
+  }, [connections, nodeMap, pendingConnection, localMousePos, isInteracting, stageRef.current]);
 
   const renderNodes = useMemo(() => {
     return nodes.map((node) => (
@@ -376,6 +386,8 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
         onSelect={onNodeSelect}
         onStartConnection={onStartConnection}
         onEndConnection={onEndConnection}
+        onDragStart={() => setIsInteracting(true)}
+        onDragEnd={() => setIsInteracting(false)}
       />
     ));
   }, [nodes, selectedNodeIds, onNodeMove, onNodeSelect, onStartConnection, onEndConnection]);
@@ -414,6 +426,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     if (e.evt.button === 1) {
       e.evt.preventDefault();
       setIsMiddleMouseDown(true);
+      setIsInteracting(true);
       const stage = stageRef.current;
       if (stage) {
         lastPosRef.current = stage.getPointerPosition();
@@ -490,6 +503,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   };
 
   const handleStageMouseUp = (e: any) => {
+    setIsInteracting(false);
     if (isMiddleMouseDown) {
       setIsMiddleMouseDown(false);
       lastPosRef.current = null;
@@ -555,12 +569,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
         onMouseDown={handleStageMouseDown}
         onMouseUp={handleStageMouseUp}
         onDragStart={(e) => {
+          setIsInteracting(true);
           if (e.target === e.target.getStage()) {
             const container = e.target.getStage()?.container();
             if (container) container.style.cursor = 'grabbing';
           }
         }}
         onDragEnd={(e) => {
+          setIsInteracting(false);
           if (e.target === e.target.getStage()) {
             const container = e.target.getStage()?.container();
             if (container) container.style.cursor = isSpacePressed ? 'grab' : 'default';
