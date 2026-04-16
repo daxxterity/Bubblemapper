@@ -108,9 +108,11 @@ export default function App() {
   const [nameModalConfig, setNameModalConfig] = useState<{ isOpen: boolean; title: string; defaultValue: string; onConfirm: (name: string) => void } | null>(null);
   
   // Sync local state when Firebase state changes (e.g., initial load or remote update)
+  const lastProjectStateId = useRef<string | null>(null);
   useEffect(() => {
-    if (isAuthReady) {
+    if (isAuthReady && projectState.id !== lastProjectStateId.current) {
       setState(projectState);
+      lastProjectStateId.current = projectState.id || null;
     }
   }, [projectState, isAuthReady]);
 
@@ -1241,6 +1243,14 @@ export default function App() {
           </span>
         </div>
         <div className="flex items-center gap-4">
+          <button 
+            onClick={toggleMonitor}
+            className={`flex items-center gap-1 transition-colors hover:text-white ${isMonitorOpen ? 'text-emerald-400' : 'text-slate-500'}`}
+            title="Toggle Firestore Monitor"
+          >
+            <Activity className="w-3 h-3" />
+            Monitor
+          </button>
           <span>{state.nodes.length} Screens</span>
           <span>{state.connections.length} Connections</span>
         </div>

@@ -10,11 +10,10 @@ export const PerformanceMonitor: React.FC = () => {
   const frameCount = useRef(0);
   const lastTime = useRef(performance.now());
   const maxDeltaRef = useRef(0);
+  const renderCountRef = useRef(0);
 
-  // Track render counts via incrementing state in an effect that runs every render
-  useEffect(() => {
-    setRenderCount(prev => prev + 1);
-  });
+  // Increment render count ref on every render (no state update here)
+  renderCountRef.current++;
 
   useEffect(() => {
     let animationFrameId: number;
@@ -23,18 +22,18 @@ export const PerformanceMonitor: React.FC = () => {
       const now = performance.now();
       const delta = now - lastTime.current;
       
-      if (delta > maxDeltaRef.current && delta < 2000) { // filter out tab focus pauses
+      if (delta > maxDeltaRef.current && delta < 2000) {
         maxDeltaRef.current = delta;
-        setMaxDelta(Math.round(delta));
       }
 
       frameCount.current++;
 
       if (delta >= 1000) {
         setFps(Math.round((frameCount.current * 1000) / delta));
+        setRenderCount(renderCountRef.current);
+        setMaxDelta(Math.round(maxDeltaRef.current));
         frameCount.current = 0;
         lastTime.current = now;
-        // Reset max delta every second to see recent spikes
         maxDeltaRef.current = 0;
       }
       

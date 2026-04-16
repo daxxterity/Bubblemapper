@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { auth, db, monitoredSetDoc, monitoredUpdateDoc, monitoredDeleteDoc, handleFirestoreError, OperationType } from '../firebase';
@@ -192,21 +192,23 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await monitoredUpdateDoc(projectRef, newState);
   };
 
+  const contextValue = useMemo(() => ({ 
+    user, 
+    loading, 
+    projectState, 
+    saveProject, 
+    isAuthReady, 
+    restoreFromBackup, 
+    availableBackups,
+    listProjects,
+    createProject,
+    loadProject,
+    deleteProject,
+    currentProjectId
+  }), [user, loading, projectState, isAuthReady, availableBackups, currentProjectId]);
+
   return (
-    <ProjectContext.Provider value={{ 
-      user, 
-      loading, 
-      projectState, 
-      saveProject, 
-      isAuthReady, 
-      restoreFromBackup, 
-      availableBackups,
-      listProjects,
-      createProject,
-      loadProject,
-      deleteProject,
-      currentProjectId
-    }}>
+    <ProjectContext.Provider value={contextValue}>
       {children}
     </ProjectContext.Provider>
   );
