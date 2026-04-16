@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { throttle } from 'lodash';
 import { Plus, Play, Save, Trash2, Image as ImageIcon, Link as LinkIcon, Settings2, Layout, MousePointer2, Upload, X as CloseIcon, AlertCircle, RotateCcw, Download, FileCode, Gamepad2, Gem, Trophy, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, AlertTriangle, Zap, GripVertical, Clock, Hand, Activity, History, Folder } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { Editor, EditorRef } from './components/Editor';
@@ -322,7 +323,6 @@ export default function App() {
       const dx = x - node.x;
       const dy = y - node.y;
 
-      // If the moved node is selected, move all selected nodes
       if (selectedNodeIds.includes(id)) {
         return {
           ...prev,
@@ -332,13 +332,18 @@ export default function App() {
         };
       }
 
-      // Otherwise just move the single node
       return {
         ...prev,
         nodes: prev.nodes.map(n => n.id === id ? { ...n, x, y } : n)
       };
     });
   }, [selectedNodeIds]);
+
+  // Throttled version for smooth dragging
+  const throttledNodeMove = useMemo(
+    () => throttle(handleNodeMove, 16, { leading: true, trailing: true }),
+    [handleNodeMove]
+  );
 
   const handleUpdateNode = (id: string, updates: Partial<NodeData>) => {
     setState(prev => ({
@@ -826,7 +831,7 @@ export default function App() {
             ref={editorRef}
             nodes={state.nodes}
             connections={state.connections}
-            onNodeMove={handleNodeMove}
+            onNodeMove={throttledNodeMove}
             onNodeSelect={(nodeOrIds, shiftKey) => {
               if (Array.isArray(nodeOrIds)) {
                 handleNodeSelect(nodeOrIds, shiftKey);

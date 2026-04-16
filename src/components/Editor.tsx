@@ -1,6 +1,202 @@
-import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, memo, useMemo } from 'react';
 import { Stage, Layer, Rect, Text, Group, Line, Circle } from 'react-konva';
 import { NodeData, Connection, Choice, NodeType } from '../types';
+
+interface NodeComponentProps {
+  node: NodeData;
+  isSelected: boolean;
+  onMove: (id: string, x: number, y: number) => void;
+  onSelect: (node: NodeData, shiftKey: boolean) => void;
+  onStartConnection: (nodeId: string, choiceId: string) => void;
+  onEndConnection: (nodeId: string) => void;
+}
+
+const NodeComponent = memo(({ 
+  node, 
+  isSelected, 
+  onMove, 
+  onSelect, 
+  onStartConnection, 
+  onEndConnection 
+}: NodeComponentProps) => {
+  const isBack = node.type === NodeType.BACK;
+  const isLevel = node.type === NodeType.LEVEL;
+  const isArtefact = node.type === NodeType.ARTEFACT;
+  const isSuccess = node.type === NodeType.SUCCESS;
+  const width = isBack ? 140 : 200; // Using constants directly or props
+  const height = isBack ? 60 : 120;
+  
+  const nodeColor = node.color || (
+    isBack ? "#7c3aed" : 
+    isLevel ? "#10b981" : 
+    isArtefact ? "#f59e0b" :
+    isSuccess ? "#ef4444" : "#3b82f6"
+  );
+
+  return (
+    <Group
+      x={node.x}
+      y={node.y}
+      draggable
+      onDragMove={(e) => {
+        onMove(node.id, e.target.x(), e.target.y());
+      }}
+      onMouseDown={(e) => {
+        e.cancelBubble = true;
+        onSelect(node, e.evt.shiftKey);
+      }}
+      onMouseEnter={(e) => {
+        const container = e.target.getStage()?.container();
+        if (container) container.style.cursor = 'pointer';
+      }}
+      onMouseLeave={(e) => {
+        const container = e.target.getStage()?.container();
+        if (container) container.style.cursor = 'default';
+      }}
+    >
+      <Rect
+        width={width}
+        height={height}
+        fill="#1e293b"
+        stroke={isSelected ? "#3b82f6" : nodeColor}
+        strokeWidth={isSelected ? 3 : 2}
+        cornerRadius={8}
+        shadowBlur={isSelected ? 15 : 5}
+        shadowColor={isSelected ? "#3b82f6" : "#000"}
+        shadowOpacity={0.3}
+      />
+      <Rect
+        width={width}
+        height={4}
+        fill={nodeColor}
+        cornerRadius={[8, 8, 0, 0]}
+      />
+      <Text
+        text={
+          isBack ? "↺ " + (node.screenID || node.title) : 
+          isLevel ? "🎮 " + (node.screenID || node.title) : 
+          isArtefact ? "💎 " + (node.screenID || node.title) :
+          isSuccess ? "🏆 " + (node.screenID || node.title) :
+          (node.screenID || node.title) || "Untitled Node"
+        }
+        fontSize={isBack ? 12 : 14}
+        fontStyle="bold"
+        fill={
+          isBack ? "#c084fc" : 
+          isLevel ? "#6ee7b7" : 
+          isArtefact ? "#fcd34d" :
+          isSuccess ? "#fca5a5" : "#f8fafc"
+        }
+        x={12}
+        y={12}
+        width={width - 24}
+        listening={false}
+      />
+      {!isBack && (
+        <Text
+          text={node.content?.substring(0, 60) + (node.content?.length > 60 ? "..." : "")}
+          fontSize={11}
+          fill="#94a3b8"
+          x={12}
+          y={32}
+          width={width - 24}
+          listening={false}
+        />
+      )}
+
+      {node.choices.map((choice, i) => (
+        <Group key={choice.id} y={50 + (i * 20)}>
+          <Text
+            text={choice.label}
+            fontSize={10}
+            fill="#64748b"
+            x={12}
+            y={-5}
+            listening={false}
+          />
+          <Circle
+            x={width}
+            y={0}
+            radius={12}
+            fill="transparent"
+            onMouseDown={(e) => {
+              e.cancelBubble = true;
+              onStartConnection(node.id, choice.id);
+              onSelect(node, e.evt.shiftKey);
+            }}
+            onMouseEnter={(e) => {
+              const container = e.target.getStage()?.container();
+              if (container) container.style.cursor = 'crosshair';
+            }}
+            onMouseLeave={(e) => {
+              const container = e.target.getStage()?.container();
+              if (container) container.style.cursor = 'pointer';
+            }}
+          />
+          <Circle
+            x={width}
+            y={0}
+            radius={5}
+            fill={choice.targetNodeId ? "#3b82f6" : "#475569"}
+            listening={false}
+          />
+        </Group>
+      ))}
+
+      <Group x={0} y={height / 2}>
+        <Circle
+          x={0}
+          y={0}
+          radius={12}
+          fill="transparent"
+          onMouseUp={(e) => {
+            onEndConnection(node.id);
+          }}
+        />
+        <Circle
+          x={0}
+          y={0}
+          radius={6}
+          fill="#475569"
+          stroke="#3b82f6"
+          strokeWidth={1}
+          listening={false}
+        />
+      </Group>
+    </Group>
+  );
+});
+
+interface ConnectionLineProps {
+  conn: Connection;
+  fromNode: NodeData;
+  toNode: NodeData;
+}
+
+const ConnectionLine = memo(({ conn, fromNode, toNode }: ConnectionLineProps) => {
+  const choiceIndex = fromNode.choices.findIndex(c => c.id === conn.choiceId);
+  const isFromBack = fromNode.type === NodeType.BACK;
+  const isToBack = toNode.type === NodeType.BACK;
+  
+  const fromW = isFromBack ? 140 : 200;
+  const toW = isToBack ? 140 : 200;
+  const toH = isToBack ? 60 : 120;
+
+  const startX = fromNode.x + fromW;
+  const startY = fromNode.y + 50 + (choiceIndex * 20);
+  const endX = toNode.x;
+  const endY = toNode.y + toH / 2;
+
+  return (
+    <Line
+      points={[startX, startY, startX + 30, startY, endX - 30, endY, endX, endY]}
+      stroke="#3b82f6"
+      strokeWidth={2}
+      tension={0.5}
+      listening={false}
+    />
+  );
+});
 
 export interface EditorRef {
   getViewportCenter: () => { x: number, y: number };
@@ -119,39 +315,26 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     return () => resizeObserver.disconnect();
   }, []);
 
+  const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
+
   const renderConnections = () => {
     const lines = connections.map((conn) => {
-      const fromNode = nodes.find((n) => n.id === conn.fromNodeId);
-      const toNode = nodes.find((n) => n.id === conn.toNodeId);
+      const fromNode = nodeMap.get(conn.fromNodeId);
+      const toNode = nodeMap.get(conn.toNodeId);
       if (!fromNode || !toNode) return null;
 
-      const choiceIndex = fromNode.choices.findIndex(c => c.id === conn.choiceId);
-      const isFromBack = fromNode.type === NodeType.BACK;
-      const isToBack = toNode.type === NodeType.BACK;
-      
-      const fromW = isFromBack ? BACK_NODE_WIDTH : NODE_WIDTH;
-      const toW = isToBack ? BACK_NODE_WIDTH : NODE_WIDTH;
-      const toH = isToBack ? BACK_NODE_HEIGHT : NODE_HEIGHT;
-
-      const startX = fromNode.x + fromW;
-      const startY = fromNode.y + CHOICE_START_Y + (choiceIndex * CHOICE_HEIGHT);
-      const endX = toNode.x;
-      const endY = toNode.y + toH / 2;
-
       return (
-        <Line
-          key={conn.id}
-          points={[startX, startY, startX + 30, startY, endX - 30, endY, endX, endY]}
-          stroke="#3b82f6"
-          strokeWidth={2}
-          tension={0.5}
-          listening={false}
+        <ConnectionLine 
+          key={conn.id} 
+          conn={conn} 
+          fromNode={fromNode} 
+          toNode={toNode} 
         />
       );
     });
 
     if (pendingConnection) {
-      const fromNode = nodes.find(n => n.id === pendingConnection.nodeId);
+      const fromNode = nodeMap.get(pendingConnection.nodeId);
       if (fromNode) {
         const choiceIndex = fromNode.choices.findIndex(c => c.id === pendingConnection.choiceId);
         const isBack = fromNode.type === NodeType.BACK;
@@ -160,7 +343,6 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
         const startX = fromNode.x + fromW;
         const startY = fromNode.y + CHOICE_START_Y + (choiceIndex * CHOICE_HEIGHT);
         
-        // Get relative mouse position
         const stage = stageRef.current;
         const transform = stage.getAbsoluteTransform().copy().invert();
         const pt = transform.point(mousePos);
@@ -179,6 +361,20 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
     }
 
     return lines;
+  };
+
+  const renderNodes = () => {
+    return nodes.map((node) => (
+      <NodeComponent
+        key={node.id}
+        node={node}
+        isSelected={selectedNodeIds.includes(node.id)}
+        onMove={onNodeMove}
+        onSelect={onNodeSelect}
+        onStartConnection={onStartConnection}
+        onEndConnection={onEndConnection}
+      />
+    ));
   };
 
   const handleWheel = (e: any) => {
@@ -376,158 +572,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
             />
           )}
           
-          {nodes.map((node) => {
-            const isBack = node.type === NodeType.BACK;
-            const isLevel = node.type === NodeType.LEVEL;
-            const isArtefact = node.type === NodeType.ARTEFACT;
-            const isSuccess = node.type === NodeType.SUCCESS;
-            const width = isBack ? BACK_NODE_WIDTH : NODE_WIDTH;
-            const height = isBack ? BACK_NODE_HEIGHT : NODE_HEIGHT;
-            const nodeColor = node.color || (
-              isBack ? "#7c3aed" : 
-              isLevel ? "#10b981" : 
-              isArtefact ? "#f59e0b" :
-              isSuccess ? "#ef4444" : "#3b82f6"
-            );
-
-            return (
-              <Group
-                key={node.id}
-                x={node.x}
-                y={node.y}
-                draggable
-                onDragMove={(e) => {
-                  onNodeMove(node.id, e.target.x(), e.target.y());
-                }}
-                onMouseDown={(e) => {
-                e.cancelBubble = true;
-                onNodeSelect(node, e.evt.shiftKey);
-              }}
-                onMouseEnter={(e) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'pointer';
-                }}
-                onMouseLeave={(e) => {
-                  const container = e.target.getStage()?.container();
-                  if (container) container.style.cursor = 'default';
-                }}
-              >
-                <Rect
-                  width={width}
-                  height={height}
-                  fill="#1e293b"
-                  stroke={selectedNodeIds.includes(node.id) ? "#3b82f6" : nodeColor}
-                  strokeWidth={selectedNodeIds.includes(node.id) ? 3 : 2}
-                  cornerRadius={8}
-                  shadowBlur={selectedNodeIds.includes(node.id) ? 15 : 5}
-                  shadowColor={selectedNodeIds.includes(node.id) ? "#3b82f6" : "#000"}
-                  shadowOpacity={0.3}
-                />
-                {/* Color indicator bar */}
-                <Rect
-                  width={width}
-                  height={4}
-                  fill={nodeColor}
-                  cornerRadius={[8, 8, 0, 0]}
-                />
-
-                <Text
-                  text={
-                    isBack ? "↺ " + (node.screenID || node.title) : 
-                    isLevel ? "🎮 " + (node.screenID || node.title) : 
-                    isArtefact ? "💎 " + (node.screenID || node.title) :
-                    isSuccess ? "🏆 " + (node.screenID || node.title) :
-                    (node.screenID || node.title) || "Untitled Node"
-                  }
-                  fontSize={isBack ? 12 : 14}
-                  fontStyle="bold"
-                  fill={
-                    isBack ? "#c084fc" : 
-                    isLevel ? "#6ee7b7" : 
-                    isArtefact ? "#fcd34d" :
-                    isSuccess ? "#fca5a5" : "#f8fafc"
-                  }
-                  x={12}
-                  y={12}
-                  width={width - 24}
-                  listening={false}
-                />
-                {!isBack && (
-                  <Text
-                    text={node.content?.substring(0, 60) + (node.content?.length > 60 ? "..." : "")}
-                    fontSize={11}
-                    fill="#94a3b8"
-                    x={12}
-                    y={32}
-                    width={width - 24}
-                    listening={false}
-                  />
-                )}
-
-                {/* Choice Connectors */}
-                {node.choices.map((choice, i) => (
-                  <Group key={choice.id} y={CHOICE_START_Y + (i * CHOICE_HEIGHT)}>
-                    <Text
-                      text={choice.label}
-                      fontSize={10}
-                      fill="#64748b"
-                      x={12}
-                      y={-5}
-                      listening={false}
-                    />
-                    <Circle
-                      x={width}
-                      y={0}
-                      radius={12}
-                      fill="transparent"
-                      onMouseDown={(e) => {
-                        e.cancelBubble = true;
-                        onStartConnection(node.id, choice.id);
-                        onNodeSelect(node, e.evt.shiftKey); // Ensure node stays selected
-                      }}
-                      onMouseEnter={(e) => {
-                        const container = e.target.getStage()?.container();
-                        if (container) container.style.cursor = 'crosshair';
-                      }}
-                      onMouseLeave={(e) => {
-                        const container = e.target.getStage()?.container();
-                        if (container) container.style.cursor = 'pointer';
-                      }}
-                    />
-                    <Circle
-                      x={width}
-                      y={0}
-                      radius={5}
-                      fill={choice.targetNodeId ? "#3b82f6" : "#475569"}
-                      listening={false}
-                    />
-                  </Group>
-                ))}
-
-                {/* Input Connector */}
-                <Group x={0} y={height / 2}>
-                  <Circle
-                    x={0}
-                    y={0}
-                    radius={12}
-                    fill="transparent"
-                    onMouseUp={(e) => {
-                      onEndConnection(node.id);
-                    }}
-                  />
-                  <Circle
-                    x={0}
-                    y={0}
-                    radius={6}
-                    fill="#475569"
-                    stroke="#3b82f6"
-                    strokeWidth={1}
-                    listening={false}
-                  />
-                </Group>
-              </Group>
-            );
-          })}
+          {renderNodes()}
         </Layer>
       </Stage>
     </div>
