@@ -120,7 +120,6 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentPlayNodeId, setCurrentPlayNodeId] = useState<string | null>(null);
   const [pendingConnection, setPendingConnection] = useState<{ nodeId: string, choiceId: string } | null>(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [savePassword, setSavePassword] = useState('');
@@ -230,15 +229,9 @@ export default function App() {
   };
 
   const handleMouseMove = useCallback((e: any) => {
-    if (pendingConnection) {
-      const stage = e.target.getStage();
-      const pos = stage.getPointerPosition();
-      if (pos) {
-        // Adjust for stage scale/position if needed, but for now simple:
-        setMousePos(pos);
-      }
-    }
-  }, [pendingConnection]);
+    // We no longer track mousePos here for performance
+    // Editor handles it internally for pending connections
+  }, []);
 
   const handleAddNode = (x?: number, y?: number, type: NodeType = NodeType.STORY) => {
     let finalX = x;
@@ -846,7 +839,6 @@ export default function App() {
             onEndConnection={handleEndConnection}
             selectedNodeIds={selectedNodeIds}
             pendingConnection={pendingConnection}
-            mousePos={mousePos}
             onMouseMove={handleMouseMove}
             onStageClick={(x, y) => handleAddNode(x, y)}
           />

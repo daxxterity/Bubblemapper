@@ -240,6 +240,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const [selectionBox, setSelectionBox] = useState<{ x1: number, y1: number, x2: number, y2: number, isAdding: boolean } | null>(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const [isMiddleMouseDown, setIsMiddleMouseDown] = useState(false);
+  const [localMousePos, setLocalMousePos] = useState({ x: 0, y: 0 });
   const lastPosRef = useRef<{ x: number, y: number } | null>(null);
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -317,7 +318,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
 
   const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
-  const renderConnections = () => {
+  const renderConnections = useMemo(() => {
     const lines = connections.map((conn) => {
       const fromNode = nodeMap.get(conn.fromNodeId);
       const toNode = nodeMap.get(conn.toNodeId);
@@ -344,26 +345,28 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
         const startY = fromNode.y + CHOICE_START_Y + (choiceIndex * CHOICE_HEIGHT);
         
         const stage = stageRef.current;
-        const transform = stage.getAbsoluteTransform().copy().invert();
-        const pt = transform.point(mousePos);
+        if (stage) {
+          const transform = stage.getAbsoluteTransform().copy().invert();
+          const pt = transform.point(localMousePos);
 
-        lines.push(
-          <Line
-            key="pending"
-            points={[startX, startY, pt.x, pt.y]}
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dash={[5, 5]}
-            listening={false}
-          />
-        );
+          lines.push(
+            <Line
+              key="pending"
+              points={[startX, startY, pt.x, pt.y]}
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dash={[5, 5]}
+              listening={false}
+            />
+          );
+        }
       }
     }
 
     return lines;
-  };
+  }, [connections, nodeMap, pendingConnection, localMousePos, stageRef.current]);
 
-  const renderNodes = () => {
+  const renderNodes = useMemo(() => {
     return nodes.map((node) => (
       <NodeComponent
         key={node.id}
@@ -375,7 +378,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
         onEndConnection={onEndConnection}
       />
     ));
-  };
+  }, [nodes, selectedNodeIds, onNodeMove, onNodeSelect, onStartConnection, onEndConnection]);
 
   const handleWheel = (e: any) => {
     e.evt.preventDefault();
@@ -445,6 +448,14 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
 
   const handleStageMouseMove = (e: any) => {
     onMouseMove(e);
+    
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const pos = stage.getPointerPosition();
+    if (pos) {
+      setLocalMousePos(pos);
+    }
     
     if (isMiddleMouseDown) {
       const stage = stageRef.current;
@@ -557,7 +568,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
         }}
       >
         <Layer>
-          {renderConnections()}
+          {renderConnections}
           
           {selectionBox && (
             <Rect
@@ -572,7 +583,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
             />
           )}
           
-          {renderNodes()}
+          {renderNodes}
         </Layer>
       </Stage>
     </div>

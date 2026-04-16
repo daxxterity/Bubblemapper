@@ -91,11 +91,17 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const projectRef = doc(db, 'projects', currentProjectId);
       const monitor = logFirestoreCall('QUERY', `projects/${currentProjectId}`, 'Snapshot listener');
       
+      let backupTimer: ReturnType<typeof setTimeout>;
       const unsubscribeSnapshot = onSnapshot(projectRef, (docSnap) => {
         if (docSnap.exists()) {
           const cloudData = docSnap.data() as ProjectState;
           setProjectState(cloudData);
-          localStorage.setItem('bubblemapper-backup', JSON.stringify(cloudData));
+          
+          clearTimeout(backupTimer);
+          backupTimer = setTimeout(() => {
+            localStorage.setItem('bubblemapper-backup', JSON.stringify(cloudData));
+          }, 1000);
+          
           monitor.success();
         }
       }, (error) => {

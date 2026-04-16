@@ -16,6 +16,8 @@ export const ProjectBrowserModal: React.FC<ProjectBrowserModalProps> = ({ isOpen
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const fetchProjects = async () => {
     setLoading(true);
     const data = await listProjects();
@@ -29,12 +31,10 @@ export const ProjectBrowserModal: React.FC<ProjectBrowserModalProps> = ({ isOpen
     }
   }, [isOpen]);
 
-  const handleDelete = async (e: React.MouseEvent, projectId: string) => {
-    e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
-      await deleteProject(projectId);
-      await fetchProjects();
-    }
+  const handleDelete = async (projectId: string) => {
+    await deleteProject(projectId);
+    setDeleteConfirmId(null);
+    await fetchProjects();
   };
 
   const filteredProjects = projects.filter(p => 
@@ -138,7 +138,10 @@ export const ProjectBrowserModal: React.FC<ProjectBrowserModalProps> = ({ isOpen
                       <ChevronRight className="w-5 h-5 text-slate-700 group-hover:text-slate-400 transition-colors" />
                     )}
                     <button
-                      onClick={(e) => handleDelete(e, project.id!)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirmId(project.id!);
+                      }}
                       className="p-2 hover:bg-red-500/10 text-slate-700 hover:text-red-500 rounded-lg transition-all"
                       title="Delete Project"
                     >
@@ -149,6 +152,39 @@ export const ProjectBrowserModal: React.FC<ProjectBrowserModalProps> = ({ isOpen
               ))
             )}
           </div>
+
+          <AnimatePresence>
+            {deleteConfirmId && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-[130] flex items-center justify-center p-6"
+              >
+                <div className="max-w-sm text-center">
+                  <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Trash2 className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Delete Project?</h3>
+                  <p className="text-sm text-slate-400 mb-6">This will permanently remove the project and all its data from the cloud. This action cannot be undone.</p>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(deleteConfirmId)}
+                      className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-medium transition-colors"
+                    >
+                      Confirm Delete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Footer */}
           <div className="p-4 bg-slate-950/50 border-t border-slate-800 flex justify-between items-center">
