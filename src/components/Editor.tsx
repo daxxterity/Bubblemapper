@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, memo, useMemo } from 'react';
-import { Stage, Layer, Rect, Text, Group, Line, Circle } from 'react-konva';
+import { Stage, Layer, Rect, Text, Group, Line, Circle, Image as KonvaImage } from 'react-konva';
 import { NodeData, Connection, Choice, NodeType } from '../types';
+import useImage from 'use-image';
 
 interface NodeComponentProps {
   node: NodeData;
@@ -23,22 +24,65 @@ const NodeComponent = memo(({
   onDragStart,
   onDragEnd
 }: NodeComponentProps) => {
+  const groupRef = useRef<any>(null);
   const isBack = node.type === NodeType.BACK;
   const isLevel = node.type === NodeType.LEVEL;
   const isArtefact = node.type === NodeType.ARTEFACT;
   const isSuccess = node.type === NodeType.SUCCESS;
-  const width = isBack ? 140 : 200; // Using constants directly or props
-  const height = isBack ? 60 : 120;
+  const isThumbnail = node.type === NodeType.THUMBNAIL;
+  
+  // Phase 3: Aspect Ratio support for Thumbnails
+  const ratio = node.aspectRatio || '3:4';
+  const width = isBack ? 140 : (isThumbnail ? (ratio === '16:9' ? 400 : 300) : 200); 
+  const height = isBack ? 60 : (isThumbnail ? (ratio === '16:9' ? 225 : 400) : 120);
+
+  const imageUrl = isThumbnail ? (node.imageUrls?.[0] || node.imageUrl) : '';
+  
+  // Helper to fix common image hosting issues - aligned with NodeEditor
+  const getProcessedImageUrl = (url: string) => {
+    if (!url) return '';
+    
+    // Fix Google Drive links
+    const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([^\/&?]+)/);
+    if (driveMatch) {
+      return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1600`;
+    }
+    
+    return url;
+  };
+
+  const [image, status] = useImage(getProcessedImageUrl(imageUrl));
   
   const nodeColor = node.color || (
     isBack ? "#7c3aed" : 
     isLevel ? "#10b981" : 
     isArtefact ? "#f59e0b" :
-    isSuccess ? "#ef4444" : "#3b82f6"
+    isSuccess ? "#ef4444" : 
+    isThumbnail ? "#64748b" : "#3b82f6"
   );
+
+  // Phase 2: Optimization - Cache nodes as images to improve pan/zoom speed
+  useEffect(() => {
+    if (groupRef.current) {
+      // We need to delay cache to ensure children are rendered
+      const timer = setTimeout(() => {
+        if (groupRef.current) {
+          groupRef.current.cache({
+            x: -20,
+            y: -20,
+            width: width + 40,
+            height: height + 40,
+            pixelRatio: 2
+          });
+        }
+      }, 50); // Slightly longer timeout for thumbnail images
+      return () => clearTimeout(timer);
+    }
+  }, [node, isSelected, width, height, status]); // Re-cache when status changes (loaded)
 
   return (
     <Group
+      ref={groupRef}
       x={node.x}
       y={node.y}
       draggable
@@ -71,34 +115,46 @@ const NodeComponent = memo(({
         shadowColor={isSelected ? "#3b82f6" : "#000"}
         shadowOpacity={0.3}
       />
+      {isThumbnail && image && (
+        <KonvaImage
+          image={image}
+          x={10}
+          y={10}
+          width={width - 20}
+          height={height - 20}
+          cornerRadius={4}
+        />
+      )}
       <Rect
         width={width}
         height={4}
         fill={nodeColor}
         cornerRadius={[8, 8, 0, 0]}
       />
-      <Text
-        text={
-          isBack ? "↺ " + (node.screenID || node.title) : 
-          isLevel ? "🎮 " + (node.screenID || node.title) : 
-          isArtefact ? "💎 " + (node.screenID || node.title) :
-          isSuccess ? "🏆 " + (node.screenID || node.title) :
-          (node.screenID || node.title) || "Untitled Node"
-        }
-        fontSize={isBack ? 12 : 14}
-        fontStyle="bold"
-        fill={
-          isBack ? "#c084fc" : 
-          isLevel ? "#6ee7b7" : 
-          isArtefact ? "#fcd34d" :
-          isSuccess ? "#fca5a5" : "#f8fafc"
-        }
-        x={12}
-        y={12}
-        width={width - 24}
-        listening={false}
-      />
-      {!isBack && (
+      {!isThumbnail && (
+        <Text
+          text={
+            isBack ? "↺ " + (node.screenID || node.title) : 
+            isLevel ? "🎮 " + (node.screenID || node.title) : 
+            isArtefact ? "💎 " + (node.screenID || node.title) :
+            isSuccess ? "🏆 " + (node.screenID || node.title) :
+            (node.screenID || node.title) || "Untitled Node"
+          }
+          fontSize={isBack ? 12 : 14}
+          fontStyle="bold"
+          fill={
+            isBack ? "#c084fc" : 
+            isLevel ? "#6ee7b7" : 
+            isArtefact ? "#fcd34d" :
+            isSuccess ? "#fca5a5" : "#f8fafc"
+          }
+          x={12}
+          y={12}
+          width={width - 24}
+          listening={false}
+        />
+      )}
+      {!isBack && !isThumbnail && (
         <Text
           text={node.content?.substring(0, 60) + (node.content?.length > 60 ? "..." : "")}
           fontSize={11}
@@ -110,7 +166,7 @@ const NodeComponent = memo(({
         />
       )}
 
-      {node.choices.map((choice, i) => (
+      {!isThumbnail && node.choices.map((choice, i) => (
         <Group key={choice.id} y={50 + (i * 20)}>
           <Text
             text={choice.label}
@@ -149,26 +205,28 @@ const NodeComponent = memo(({
         </Group>
       ))}
 
-      <Group x={0} y={height / 2}>
-        <Circle
-          x={0}
-          y={0}
-          radius={12}
-          fill="transparent"
-          onMouseUp={(e) => {
-            onEndConnection(node.id);
-          }}
-        />
-        <Circle
-          x={0}
-          y={0}
-          radius={6}
-          fill="#475569"
-          stroke="#3b82f6"
-          strokeWidth={1}
-          listening={false}
-        />
-      </Group>
+      {!isThumbnail && (
+        <Group x={0} y={height / 2}>
+          <Circle
+            x={0}
+            y={0}
+            radius={12}
+            fill="transparent"
+            onMouseUp={(e) => {
+              onEndConnection(node.id);
+            }}
+          />
+          <Circle
+            x={0}
+            y={0}
+            radius={6}
+            fill="#475569"
+            stroke="#3b82f6"
+            strokeWidth={1}
+            listening={false}
+          />
+        </Group>
+      )}
     </Group>
   );
 });
@@ -184,9 +242,14 @@ const ConnectionLine = memo(({ conn, fromNode, toNode }: ConnectionLineProps) =>
   const isFromBack = fromNode.type === NodeType.BACK;
   const isToBack = toNode.type === NodeType.BACK;
   
-  const fromW = isFromBack ? 140 : 200;
-  const toW = isToBack ? 140 : 200;
-  const toH = isToBack ? 60 : 120;
+  const fromIsThumbnail = fromNode.type === NodeType.THUMBNAIL;
+  const toIsThumbnail = toNode.type === NodeType.THUMBNAIL;
+  const fromRatio = fromNode.aspectRatio || '3:4';
+  const toRatio = toNode.aspectRatio || '3:4';
+
+  const fromW = isFromBack ? 140 : (fromIsThumbnail ? (fromRatio === '16:9' ? 400 : 300) : 200);
+  const toW = isToBack ? 140 : (toIsThumbnail ? (toRatio === '16:9' ? 400 : 300) : 200);
+  const toH = isToBack ? 60 : (toIsThumbnail ? (toRatio === '16:9' ? 225 : 400) : 120);
 
   const startX = fromNode.x + fromW;
   const startY = fromNode.y + 50 + (choiceIndex * 20);
@@ -225,6 +288,8 @@ const NODE_WIDTH = 200;
 const NODE_HEIGHT = 120;
 const BACK_NODE_WIDTH = 140;
 const BACK_NODE_HEIGHT = 60;
+const THUMBNAIL_NODE_WIDTH = 300;
+const THUMBNAIL_NODE_HEIGHT = 480;
 const CHOICE_START_Y = 50;
 const CHOICE_HEIGHT = 20;
 
@@ -246,6 +311,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
   const [isMiddleMouseDown, setIsMiddleMouseDown] = useState(false);
   const [isInteracting, setIsInteracting] = useState(false);
   const [localMousePos, setLocalMousePos] = useState({ x: 0, y: 0 });
+  const [viewState, setViewState] = useState({ x: 0, y: 0, scale: 1 });
   const lastPosRef = useRef<{ x: number, y: number } | null>(null);
   const stageRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -323,74 +389,117 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
 
   const nodeMap = useMemo(() => new Map(nodes.map(n => [n.id, n])), [nodes]);
 
-  const renderConnections = useMemo(() => {
-    const lines = [];
+  const renderStaticConnections = useMemo(() => {
+    if (isInteracting) return null;
     
-    // Phase 1: Optimization - Only render static connections if NOT interacting
-    if (!isInteracting) {
-      connections.forEach((conn) => {
-        const fromNode = nodeMap.get(conn.fromNodeId);
-        const toNode = nodeMap.get(conn.toNodeId);
-        if (!fromNode || !toNode) return;
+    // Phase 3: Viewport Culling - Filter connections
+    const padding = 100;
+    const vX = -viewState.x / viewState.scale;
+    const vY = -viewState.y / viewState.scale;
+    const vW = dimensions.width / viewState.scale;
+    const vH = dimensions.height / viewState.scale;
 
-        lines.push(
-          <ConnectionLine 
-            key={conn.id} 
-            conn={conn} 
-            fromNode={fromNode} 
-            toNode={toNode} 
-          />
-        );
-      });
-    }
+    return connections.filter(conn => {
+      const fromNode = nodeMap.get(conn.fromNodeId);
+      const toNode = nodeMap.get(conn.toNodeId);
+      if (!fromNode || !toNode) return false;
 
-    if (pendingConnection) {
-      const fromNode = nodeMap.get(pendingConnection.nodeId);
-      if (fromNode) {
-        const choiceIndex = fromNode.choices.findIndex(c => c.id === pendingConnection.choiceId);
-        const isBack = fromNode.type === NodeType.BACK;
-        const fromW = isBack ? BACK_NODE_WIDTH : NODE_WIDTH;
-        
-        const startX = fromNode.x + fromW;
-        const startY = fromNode.y + CHOICE_START_Y + (choiceIndex * CHOICE_HEIGHT);
-        
-        const stage = stageRef.current;
-        if (stage) {
-          const transform = stage.getAbsoluteTransform().copy().invert();
-          const pt = transform.point(localMousePos);
+      // Render if either node is visible
+      const isFromVisible = 
+        fromNode.x + NODE_WIDTH + padding > vX && 
+        fromNode.x - padding < vX + vW && 
+        fromNode.y + NODE_HEIGHT + padding > vY && 
+        fromNode.y - padding < vY + vH;
+      
+      const isToVisible = 
+        toNode.x + NODE_WIDTH + padding > vX && 
+        toNode.x - padding < vX + vW && 
+        toNode.y + NODE_HEIGHT + padding > vY && 
+        toNode.y - padding < vY + vH;
 
-          lines.push(
-            <Line
-              key="pending"
-              points={[startX, startY, pt.x, pt.y]}
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dash={[5, 5]}
-              listening={false}
-            />
-          );
-        }
-      }
-    }
+      return isFromVisible || isToVisible;
+    }).map((conn) => {
+      const fromNode = nodeMap.get(conn.fromNodeId)!;
+      const toNode = nodeMap.get(conn.toNodeId)!;
 
-    return lines;
-  }, [connections, nodeMap, pendingConnection, localMousePos, isInteracting, stageRef.current]);
+      return (
+        <ConnectionLine 
+          key={conn.id} 
+          conn={conn} 
+          fromNode={fromNode} 
+          toNode={toNode} 
+        />
+      );
+    });
+  }, [connections, nodeMap, isInteracting, viewState, dimensions]);
+
+  const renderPendingConnection = useMemo(() => {
+    if (!pendingConnection) return null;
+    
+    const fromNode = nodeMap.get(pendingConnection.nodeId);
+    if (!fromNode) return null;
+
+    const choiceIndex = fromNode.choices.findIndex(c => c.id === pendingConnection.choiceId);
+    const isBack = fromNode.type === NodeType.BACK;
+    const fromW = isBack ? BACK_NODE_WIDTH : NODE_WIDTH;
+    
+    const startX = fromNode.x + fromW;
+    const startY = fromNode.y + CHOICE_START_Y + (choiceIndex * CHOICE_HEIGHT);
+    
+    const stage = stageRef.current;
+    if (!stage) return null;
+    
+    const transform = stage.getAbsoluteTransform().copy().invert();
+    const pt = transform.point(localMousePos);
+
+    return (
+      <Line
+        key="pending"
+        points={[startX, startY, pt.x, pt.y]}
+        stroke="#3b82f6"
+        strokeWidth={2}
+        dash={[5, 5]}
+        listening={false}
+      />
+    );
+  }, [pendingConnection, nodeMap, localMousePos, stageRef.current]);
 
   const renderNodes = useMemo(() => {
-    return nodes.map((node) => (
-      <NodeComponent
-        key={node.id}
-        node={node}
-        isSelected={selectedNodeIds.includes(node.id)}
-        onMove={onNodeMove}
-        onSelect={onNodeSelect}
-        onStartConnection={onStartConnection}
-        onEndConnection={onEndConnection}
-        onDragStart={() => setIsInteracting(true)}
-        onDragEnd={() => setIsInteracting(false)}
-      />
-    ));
-  }, [nodes, selectedNodeIds, onNodeMove, onNodeSelect, onStartConnection, onEndConnection]);
+    // Phase 3: Viewport Culling - Only render nodes in current view
+    const padding = 50;
+    const vX = -viewState.x / viewState.scale;
+    const vY = -viewState.y / viewState.scale;
+    const vW = dimensions.width / viewState.scale;
+    const vH = dimensions.height / viewState.scale;
+
+    return nodes
+      .filter(node => {
+        const isBack = node.type === NodeType.BACK;
+        const isThumbnail = node.type === NodeType.THUMBNAIL;
+        const ratio = node.aspectRatio || '3:4';
+        const width = isBack ? BACK_NODE_WIDTH : (isThumbnail ? (ratio === '16:9' ? 400 : 300) : NODE_WIDTH);
+        const height = isBack ? BACK_NODE_HEIGHT : (isThumbnail ? (ratio === '16:9' ? 225 : 400) : NODE_HEIGHT);
+        return (
+          node.x + width + padding > vX && 
+          node.x - padding < vX + vW && 
+          node.y + height + padding > vY && 
+          node.y - padding < vY + vH
+        );
+      })
+      .map((node) => (
+        <NodeComponent
+          key={node.id}
+          node={node}
+          isSelected={selectedNodeIds.includes(node.id)}
+          onMove={onNodeMove}
+          onSelect={onNodeSelect}
+          onStartConnection={onStartConnection}
+          onEndConnection={onEndConnection}
+          onDragStart={() => setIsInteracting(true)}
+          onDragEnd={() => setIsInteracting(false)}
+        />
+      ));
+  }, [nodes, selectedNodeIds, onNodeMove, onNodeSelect, onStartConnection, onEndConnection, viewState, dimensions]);
 
   const handleWheel = (e: any) => {
     e.evt.preventDefault();
@@ -419,6 +528,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       y: pointer.y - mousePointTo.y * limitedScale,
     };
     stage.position(newPos);
+    setViewState({ x: newPos.x, y: newPos.y, scale: limitedScale });
   };
 
   const handleStageMouseDown = (e: any) => {
@@ -486,6 +596,7 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
       });
 
       lastPosRef.current = pos;
+      setViewState({ x: stage.x(), y: stage.y(), scale: stage.scaleX() });
       stage.batchDraw();
       return;
     }
@@ -575,16 +686,23 @@ export const Editor = forwardRef<EditorRef, EditorProps>(({
             if (container) container.style.cursor = 'grabbing';
           }
         }}
+        onDragMove={(e) => {
+          if (e.target === e.target.getStage()) {
+            setViewState({ x: e.target.x(), y: e.target.y(), scale: e.target.scaleX() });
+          }
+        }}
         onDragEnd={(e) => {
           setIsInteracting(false);
           if (e.target === e.target.getStage()) {
             const container = e.target.getStage()?.container();
             if (container) container.style.cursor = isSpacePressed ? 'grab' : 'default';
+            setViewState({ x: e.target.x(), y: e.target.y(), scale: e.target.scaleX() });
           }
         }}
       >
         <Layer>
-          {renderConnections}
+          {renderStaticConnections}
+          {renderPendingConnection}
           
           {selectionBox && (
             <Rect

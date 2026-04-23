@@ -99,7 +99,7 @@ const ImageCarousel = ({ urls }: { urls: string[] }) => {
 };
 
 export default function App() {
-  const { user, loading, projectState, saveProject, isAuthReady, availableBackups, createProject, currentProjectId } = useProject();
+  const { user, loading, projectState, saveProject, isAuthReady, availableBackups, createProject, currentProjectId, resetProject } = useProject();
   const [state, setState] = useState<ProjectState>(projectState);
   const [isExtrasFullscreen, setIsExtrasFullscreen] = useState(false);
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
@@ -117,6 +117,11 @@ export default function App() {
   }, [projectState, isAuthReady]);
 
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
+
+  // Clear selection when project changes
+  useEffect(() => {
+    setSelectedNodeIds([]);
+  }, [projectState.id]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentPlayNodeId, setCurrentPlayNodeId] = useState<string | null>(null);
   const [pendingConnection, setPendingConnection] = useState<{ nodeId: string, choiceId: string } | null>(null);
@@ -881,8 +886,7 @@ export default function App() {
             initial={false}
             animate={{ 
               width: selectedNodeIds.length === 1 ? 340 : 200,
-              height: selectedNodeIds.length === 1 ? 'auto' : 48,
-              maxHeight: selectedNodeIds.length === 1 ? 'calc(100vh - 120px)' : 48
+              height: selectedNodeIds.length === 1 ? 'calc(100vh - 120px)' : 48
             }}
             className="bg-slate-900/90 backdrop-blur-xl border border-slate-700 rounded-2xl shadow-2xl pointer-events-auto overflow-hidden flex flex-col"
           >
@@ -937,6 +941,7 @@ export default function App() {
                     onUpdateNode={handleUpdateNode}
                     onDeleteNode={handleDeleteNode}
                     onFullscreenToggle={() => setIsExtrasFullscreen(true)}
+                    hideHeader={true}
                   />
                 </motion.div>
               ) : (
@@ -1207,6 +1212,7 @@ export default function App() {
         onExportJSON={handleExport}
         onExportHTML={handleExportHTML}
         onRecovery={() => setIsRecoveryModalOpen(true)}
+        onNew={resetProject}
         hasBackups={availableBackups.guest || availableBackups.local}
       />
 

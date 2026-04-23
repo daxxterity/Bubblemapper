@@ -19,7 +19,7 @@ import {
   Clock, Hand, Link as LinkIcon, GripVertical, 
   Layout, Image as ImageIcon2, Link2, MoreHorizontal,
   Sparkles, Bug, Cpu, ChevronDown, ChevronUp, Maximize2, Minimize2,
-  Expand
+  Expand, Eye
 } from 'lucide-react';
 import { NodeData, NodeType, TemplateType, Choice, Tip, TipType } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -37,6 +37,8 @@ type TabType = 'main' | 'images' | 'links' | 'extras';
 
 export const NodeEditor: React.FC<NodeEditorProps> = ({ selectedNode, onUpdateNode, onDeleteNode, onFullscreenToggle, initialTab, hideHeader }) => {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab || 'main');
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [isColorDropdownOpen, setIsColorDropdownOpen] = useState(false);
 
   const handleUpdateNode = (data: Partial<NodeData>) => {
     onUpdateNode(selectedNode.id, data);
@@ -44,46 +46,133 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ selectedNode, onUpdateNo
 
   const renderMainTab = () => (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Node Type</label>
-          <div className="flex bg-slate-800/50 p-0.5 rounded-md border border-slate-700">
+      {selectedNode.type === NodeType.THUMBNAIL && (
+        <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4 space-y-3">
+          <label className="block text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Thumbnail Layout</label>
+          <div className="flex gap-2">
             {[
-              { type: NodeType.STORY, label: 'Story', color: 'bg-blue-600' },
-              { type: NodeType.LEVEL, label: 'Level', color: 'bg-emerald-600' },
-              { type: NodeType.ARTEFACT, label: 'Artfct', color: 'bg-amber-600' },
-              { type: NodeType.SUCCESS, label: 'Succss', color: 'bg-red-600' },
-              { type: NodeType.BACK, label: 'Back', color: 'bg-purple-600' },
-            ].map((item) => (
-              <button 
-                key={item.type}
-                onClick={() => handleUpdateNode({ type: item.type })}
-                className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase transition-all ${
-                  selectedNode.type === item.type 
-                    ? `${item.color} text-white` 
-                    : 'text-slate-500 hover:text-slate-300'
+              { id: '3:4', label: '3:4 Portrait' },
+              { id: '16:9', label: '16:9 Landscape' }
+            ].map(aspect => (
+              <button
+                key={aspect.id}
+                onClick={() => handleUpdateNode({ aspectRatio: aspect.id as any })}
+                className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase transition-all border ${
+                  (selectedNode.aspectRatio || '3:4') === aspect.id
+                    ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/20'
+                    : 'bg-slate-800/50 border-slate-700 text-slate-500 hover:text-slate-300'
                 }`}
               >
-                {item.label}
+                {aspect.label}
               </button>
             ))}
           </div>
         </div>
-      </div>
+      )}
 
-      <div>
-        <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Node Color</label>
-        <div className="flex flex-wrap gap-2">
-          {['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#64748b', '#000000'].map(color => (
-            <button
-              key={color}
-              onClick={() => handleUpdateNode({ color })}
-              className={`w-6 h-6 rounded-full border-2 transition-all ${
-                selectedNode.color === color ? 'border-white scale-110' : 'border-transparent hover:scale-105'
-              }`}
-              style={{ backgroundColor: color }}
-            />
-          ))}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="relative">
+          <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Node Type</label>
+          <button 
+            onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+            onBlur={() => setTimeout(() => setIsTypeDropdownOpen(false), 200)}
+            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-200 text-left flex items-center justify-between hover:border-slate-500 transition-colors"
+          >
+            <span className="truncate">
+              {Object.entries(NodeType).find(([_, v]) => v === selectedNode.type)?.[0] || 'Story'}
+            </span>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isTypeDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+          
+          <AnimatePresence>
+            {isTypeDropdownOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute z-50 left-0 right-0 top-full mt-1 bg-black border border-slate-700 rounded-lg shadow-2xl overflow-hidden py-1"
+              >
+                {Object.values(NodeType).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      handleUpdateNode({ type });
+                      setIsTypeDropdownOpen(false);
+                    }}
+                    className={`w-full px-4 py-2 text-xs text-left hover:bg-slate-800 transition-colors flex items-center gap-2 ${
+                      selectedNode.type === type ? 'text-blue-400 bg-slate-900' : 'text-slate-300'
+                    }`}
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+                    {type.charAt(0) + type.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="relative">
+          <label className="block text-[10px] font-bold text-slate-500 mb-2 uppercase tracking-wider">Node Color</label>
+          <button 
+            onClick={() => setIsColorDropdownOpen(!isColorDropdownOpen)}
+            onBlur={() => setTimeout(() => setIsColorDropdownOpen(false), 200)}
+            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-3 pr-8 py-2 text-xs text-slate-200 text-left flex items-center justify-between hover:border-slate-500 transition-colors"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <div 
+                className="w-2.5 h-2.5 rounded-full border border-white/20"
+                style={{ backgroundColor: selectedNode.color || '#3b82f6' }}
+              />
+              <span className="truncate">
+                {['Blue', 'Green', 'Amber', 'Red', 'Pink', 'Purple', 'Slate', 'Black'][
+                  ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#64748b', '#000000'].indexOf(selectedNode.color || '#3b82f6')
+                ] || 'Blue'}
+              </span>
+            </div>
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${isColorDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {isColorDropdownOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute z-50 left-0 right-0 top-full mt-1 bg-black border border-slate-700 rounded-lg shadow-2xl overflow-hidden py-1 max-h-48 overflow-y-auto custom-scrollbar"
+              >
+                {[
+                  { name: 'Blue', value: '#3b82f6' },
+                  { name: 'Green', value: '#10b981' },
+                  { name: 'Amber', value: '#f59e0b' },
+                  { name: 'Red', value: '#ef4444' },
+                  { name: 'Pink', value: '#ec4899' },
+                  { name: 'Purple', value: '#8b5cf6' },
+                  { name: 'Slate', value: '#64748b' },
+                  { name: 'Black', value: '#000000' },
+                ].map((color) => (
+                  <button
+                    key={color.value}
+                    onClick={() => {
+                      handleUpdateNode({ color: color.value });
+                      setIsColorDropdownOpen(false);
+                    }}
+                    className={`w-full px-4 py-2 text-xs text-left hover:bg-slate-800 transition-colors flex items-center gap-3 ${
+                      selectedNode.color === color.value ? 'bg-slate-900 border-l-2 border-blue-500' : ''
+                    }`}
+                  >
+                    <div 
+                      className="w-3 h-3 rounded-full shrink-0 border border-white/10"
+                      style={{ backgroundColor: color.value }}
+                    />
+                    <span className={selectedNode.color === color.value ? 'text-white font-bold' : 'text-slate-300'}>
+                      {color.name}
+                    </span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -644,72 +733,71 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ selectedNode, onUpdateNo
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {!hideHeader && (
-        <>
-          {/* Header */}
-          <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                selectedNode.type === NodeType.BACK ? 'bg-purple-500/10 text-purple-400' :
-                selectedNode.type === NodeType.LEVEL ? 'bg-emerald-500/10 text-emerald-400' :
-                selectedNode.type === NodeType.ARTEFACT ? 'bg-amber-500/10 text-amber-400' :
-                selectedNode.type === NodeType.SUCCESS ? 'bg-red-500/10 text-red-400' :
-                'bg-blue-500/10 text-blue-400'
-              }`}>
-                {selectedNode.type === NodeType.BACK && <RotateCcw className="w-4 h-4" />}
-                {selectedNode.type === NodeType.LEVEL && <Gamepad2 className="w-4 h-4" />}
-                {selectedNode.type === NodeType.ARTEFACT && <Gem className="w-4 h-4" />}
-                {selectedNode.type === NodeType.SUCCESS && <Trophy className="w-4 h-4" />}
-                {selectedNode.type === NodeType.STORY && <Settings2 className="w-4 h-4" />}
-              </div>
-              <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
-                {selectedNode.type === NodeType.BACK ? 'Back Node' : 
-                 selectedNode.type === NodeType.LEVEL ? 'Level Node' : 
-                 selectedNode.type === NodeType.ARTEFACT ? 'Artefact Node' :
-                 selectedNode.type === NodeType.SUCCESS ? 'Success Node' : 
-                 'Context Window'}
-              </span>
+        <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/50 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${
+              selectedNode.type === NodeType.BACK ? 'bg-purple-500/10 text-purple-400' :
+              selectedNode.type === NodeType.LEVEL ? 'bg-emerald-500/10 text-emerald-400' :
+              selectedNode.type === NodeType.ARTEFACT ? 'bg-amber-500/10 text-amber-400' :
+              selectedNode.type === NodeType.SUCCESS ? 'bg-red-500/10 text-red-400' :
+              'bg-blue-500/10 text-blue-400'
+            }`}>
+              {selectedNode.type === NodeType.BACK && <RotateCcw className="w-4 h-4" />}
+              {selectedNode.type === NodeType.LEVEL && <Gamepad2 className="w-4 h-4" />}
+              {selectedNode.type === NodeType.ARTEFACT && <Gem className="w-4 h-4" />}
+              {selectedNode.type === NodeType.SUCCESS && <Trophy className="w-4 h-4" />}
+              {selectedNode.type === NodeType.THUMBNAIL && <Eye className="w-4 h-4" />}
+              {selectedNode.type === NodeType.STORY && <Settings2 className="w-4 h-4" />}
             </div>
-            <button 
-              onClick={() => onDeleteNode(selectedNode.id)}
-              className="p-2 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-300">
+              {selectedNode.type === NodeType.BACK ? 'Back Node' : 
+               selectedNode.type === NodeType.LEVEL ? 'Level Node' : 
+               selectedNode.type === NodeType.ARTEFACT ? 'Artefact Node' :
+               selectedNode.type === NodeType.SUCCESS ? 'Success Node' : 
+               selectedNode.type === NodeType.THUMBNAIL ? 'Thumbnail Node' : 
+               'Context Window'}
+            </span>
           </div>
-
-          {/* Tabs Navigation */}
-          <div className="flex border-b border-slate-800 bg-slate-900/30">
-            {[
-              { id: 'main', label: 'Main', icon: <Layout className="w-3.5 h-3.5" /> },
-              { id: 'images', label: 'Images', icon: <ImageIcon2 className="w-3.5 h-3.5" /> },
-              { id: 'links', label: 'Links', icon: <Link2 className="w-3.5 h-3.5" /> },
-              { id: 'extras', label: 'Extras', icon: <MoreHorizontal className="w-3.5 h-3.5" /> },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-bold uppercase tracking-wider transition-all relative ${
-                  activeTab === tab.id ? 'text-blue-400' : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-                {activeTab === tab.id && (
-                  <motion.div 
-                    layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
-                  />
-                )}
-              </button>
-            ))}
-          </div>
-        </>
+          <button 
+            onClick={() => onDeleteNode(selectedNode.id)}
+            className="p-2 text-slate-500 hover:text-red-400 transition-colors rounded-lg hover:bg-red-500/10"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
+      {/* Tabs Navigation */}
+      <div className="flex border-b border-slate-800 bg-slate-900/30 shrink-0">
+        {[
+          { id: 'main', label: 'Main', icon: <Layout className="w-3.5 h-3.5" /> },
+          { id: 'images', label: 'Images', icon: <ImageIcon2 className="w-3.5 h-3.5" /> },
+          { id: 'links', label: 'Links', icon: <Link2 className="w-3.5 h-3.5" /> },
+          { id: 'extras', label: 'Extras', icon: <MoreHorizontal className="w-3.5 h-3.5" /> },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as TabType)}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-[10px] font-bold uppercase tracking-wider transition-all relative ${
+              activeTab === tab.id ? 'text-blue-400' : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            {tab.icon}
+            {tab.label}
+            {activeTab === tab.id && (
+              <motion.div 
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500"
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* Content Area */}
-      <div className="flex-1 overflow-y-auto p-6 pb-48 custom-scrollbar bg-slate-900/20 [scrollbar-gutter:stable]">
+      <div className="flex-1 overflow-y-auto p-6 pb-12 custom-scrollbar bg-slate-900/20 [scrollbar-gutter:stable]">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}

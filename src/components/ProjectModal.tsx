@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Save, Upload, Download, FileCode, History, Folder, ChevronRight, Copy, FolderOpen } from 'lucide-react';
+import { X, Save, Upload, Download, FileCode, History, Folder, ChevronRight, Copy, FolderOpen, Plus } from 'lucide-react';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface ProjectModalProps {
   onExportJSON: () => void;
   onExportHTML: () => void;
   onRecovery: () => void;
+  onNew: () => void;
   hasBackups: boolean;
 }
 
@@ -25,11 +26,23 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   onExportJSON,
   onExportHTML,
   onRecovery,
+  onNew,
   hasBackups
 }) => {
+  const [isConfirmingNew, setIsConfirmingNew] = React.useState(false);
+
   if (!isOpen) return null;
 
   const menuItems = [
+    {
+      id: 'new',
+      label: 'New Project',
+      description: 'Start fresh with a clean screen',
+      icon: Plus,
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/10',
+      onClick: () => setIsConfirmingNew(true)
+    },
     {
       id: 'save',
       label: 'Save Project',
@@ -161,6 +174,43 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               Close
             </button>
           </div>
+
+          <AnimatePresence>
+            {isConfirmingNew && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-950/90 backdrop-blur-md z-[130] flex items-center justify-center p-6"
+              >
+                <div className="max-w-sm text-center">
+                  <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Plus className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">New Project?</h3>
+                  <p className="text-sm text-slate-400 mb-6">Have you saved? This action will clear your current screen.</p>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setIsConfirmingNew(false)}
+                      className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={() => {
+                        onNew();
+                        setIsConfirmingNew(false);
+                        onClose();
+                      }}
+                      className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-medium transition-colors text-sm"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       </div>
     </AnimatePresence>

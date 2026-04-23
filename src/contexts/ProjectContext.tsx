@@ -17,6 +17,7 @@ interface ProjectContextType {
   createProject: (name: string, state?: ProjectState) => Promise<void>;
   loadProject: (projectId: string) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
+  resetProject: () => void;
   currentProjectId: string | null;
 }
 
@@ -156,13 +157,16 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const projectRef = doc(db, 'projects', id);
     const data = state || INITIAL_STATE;
     
-    await monitoredSetDoc(projectRef, {
+    const dataWithMeta = {
       ...data,
       id,
       name,
       ownerUid: user.uid,
       updatedAt: Timestamp.now()
-    });
+    };
+    
+    setProjectState(dataWithMeta as ProjectState);
+    await monitoredSetDoc(projectRef, dataWithMeta);
     setCurrentProjectId(id);
     localStorage.setItem('bubblemapper-current-id', id);
   };
@@ -179,8 +183,20 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     
     // If the deleted project was the current one, reset
     if (currentProjectId === projectId) {
+      resetProject();
+    }
+  };
+
+  const resetProject = () => {
+    if (user) {
+      // For logged in users, resetting means creating a new cloud project
+      // so it doesn't auto-load the most recent one.
+      createProject('Untitled Project');
+    } else {
+      // For guests, we just clear everything
       setCurrentProjectId(null);
       localStorage.removeItem('bubblemapper-current-id');
+      localStorage.removeItem('bubblemapper-project');
       setProjectState(INITIAL_STATE);
     }
   };
@@ -210,6 +226,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     createProject,
     loadProject,
     deleteProject,
+    resetProject,
     currentProjectId
   }), [user, loading, projectState, isAuthReady, availableBackups, currentProjectId]);
 

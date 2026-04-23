@@ -14,6 +14,7 @@ export enum NodeType {
   LEVEL = 'LEVEL',
   ARTEFACT = 'ARTEFACT',
   SUCCESS = 'SUCCESS',
+  THUMBNAIL = 'THUMBNAIL',
 }
 
 export interface Choice {
@@ -48,6 +49,7 @@ export interface NodeData {
   tips?: Tip[];
   template: TemplateType;
   color?: string;
+  aspectRatio?: '3:4' | '16:9';
   x: number;
   y: number;
 }
