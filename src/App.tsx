@@ -251,7 +251,8 @@ export default function App() {
     const title = type === NodeType.BACK ? 'Back / Return' : 
                  type === NodeType.LEVEL ? 'New Level' : 
                  type === NodeType.ARTEFACT ? 'New Artefact' :
-                 type === NodeType.SUCCESS ? 'Success Screen' : 'New Screen';
+                 type === NodeType.SUCCESS ? 'Success Screen' : 
+                 type === NodeType.THUMBNAIL ? 'New Thumbnail' : 'New Screen';
 
     const newNode: NodeData = {
       id: uuidv4(),
@@ -262,7 +263,8 @@ export default function App() {
         ? 'Automatically returns to the previous screen in history.' 
         : type === NodeType.LEVEL ? 'Game level description...' : 
           type === NodeType.ARTEFACT ? 'Artefact description...' :
-          type === NodeType.SUCCESS ? 'Victory message!' : 'Enter description here...',
+          type === NodeType.SUCCESS ? 'Victory message!' : 
+          type === NodeType.THUMBNAIL ? '' : 'Enter description here...',
       imageUrl: type === NodeType.BACK ? '' : 'https://picsum.photos/seed/' + Math.random() + '/800/600',
       imageUrls: type === NodeType.BACK ? [] : ['https://picsum.photos/seed/' + Math.random() + '/800/600'],
       tips: [],
@@ -274,7 +276,9 @@ export default function App() {
       color: type === NodeType.BACK ? '#7c3aed' : 
              type === NodeType.LEVEL ? '#10b981' : 
              type === NodeType.ARTEFACT ? '#f59e0b' :
-             type === NodeType.SUCCESS ? '#ef4444' : '#3b82f6',
+             type === NodeType.SUCCESS ? '#ef4444' : 
+             type === NodeType.THUMBNAIL ? '#3b82f6' : '#3b82f6',
+      aspectRatio: type === NodeType.THUMBNAIL ? '3:4' : undefined,
       x: finalX,
       y: finalY,
     };

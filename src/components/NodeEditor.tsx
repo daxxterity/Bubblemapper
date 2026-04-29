@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 const getProcessedImageUrl = (url: string) => {
   if (!url) return 'https://picsum.photos/seed/placeholder/800/600';
   
-  // Handle Google Drive links by converting to direct download/thumbnail links
+  // Handle Google Drive links by converting to thumbnail links for better performance
   const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([^\/&?]+)/);
   if (driveMatch) {
-    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1600`;
+    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
   }
   
   return url;
@@ -795,7 +795,6 @@ export const NodeEditor: React.FC<NodeEditorProps> = ({ selectedNode, onUpdateNo
           </button>
         ))}
       </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-6 pb-12 custom-scrollbar bg-slate-900/20 [scrollbar-gutter:stable]">
         <AnimatePresence mode="wait">

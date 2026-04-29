@@ -11,20 +11,82 @@ interface PlayModeProps {
   onClose: () => void;
 }
 
-const ImageCarousel = ({ urls, captions, getProcessedImageUrl }: { urls: string[], captions?: string[], getProcessedImageUrl: (url: string) => string }) => {
+const ImageCarousel = ({ 
+  urls, 
+  captions, 
+  getProcessedImageUrl, 
+  isExpanded, 
+  onToggleExpand,
+  onPrevNode,
+  onNextNode,
+  hasPrevNode,
+  hasNextNode
+}: { 
+  urls: string[], 
+  captions?: string[], 
+  getProcessedImageUrl: (url: string) => string, 
+  isExpanded?: boolean, 
+  onToggleExpand?: () => void,
+  onPrevNode?: () => void,
+  onNextNode?: () => void,
+  hasPrevNode?: boolean,
+  hasNextNode?: boolean
+}) => {
   const [index, setIndex] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Add Keyboard Support (A/D)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      
+      const key = e.key.toLowerCase();
+      const code = e.code;
+      const isRight = key === 'd' || code === 'ArrowRight';
+      const isLeft = key === 'a' || code === 'ArrowLeft';
+
+      if (!isRight && !isLeft) return;
+
+      const len = urls.length;
+      
+      if (isRight) {
+        if (len > 1 && index < len - 1) {
+          setIndex(prev => prev + 1);
+        } else if (onNextNode) {
+          onNextNode();
+        }
+      } else if (isLeft) {
+        if (len > 1 && index > 0) {
+          setIndex(prev => prev - 1);
+        } else if (onPrevNode) {
+          onPrevNode();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [urls, index, onNextNode, onPrevNode]); // Using urls and index as dependency
+
   if (urls.length === 0) return null;
 
-  const next = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIndex((prev) => (prev + 1) % urls.length);
+  const next = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (urls.length > 1 && index < urls.length - 1) {
+      setIndex((prev) => prev + 1);
+    } else if (onNextNode) {
+      onNextNode();
+    }
   };
 
-  const prev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIndex((prev) => (prev - 1 + urls.length) % urls.length);
+  const prev = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (urls.length > 1 && index > 0) {
+      setIndex((prev) => prev - 1);
+    } else if (onPrevNode) {
+      onPrevNode();
+    }
   };
 
   const handleRefresh = (e: React.MouseEvent) => {
@@ -32,8 +94,11 @@ const ImageCarousel = ({ urls, captions, getProcessedImageUrl }: { urls: string[
     setRefreshKey(prev => prev + 1);
   };
 
+  const showPrevArrow = urls.length > 1 || hasPrevNode;
+  const showNextArrow = urls.length > 1 || hasNextNode;
+
   return (
-    <div className="relative w-full h-full group">
+    <div className="relative w-full h-full group select-none">
       <AnimatePresence mode="wait">
         <motion.div 
           key={`${index}-${refreshKey}`}
@@ -41,17 +106,18 @@ const ImageCarousel = ({ urls, captions, getProcessedImageUrl }: { urls: string[
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="w-full h-full relative"
+          onClick={onToggleExpand}
         >
           <img 
             src={getProcessedImageUrl(urls[index])} 
             alt={`Image ${index + 1}`} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain bg-black/40 cursor-pointer"
             referrerPolicy="no-referrer"
             onError={(e) => {
               (e.target as HTMLImageElement).src = 'https://picsum.photos/seed/error/800/600';
             }}
           />
-          {captions && captions[index] && (
+          {captions && captions[index] && !isExpanded && (
             <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
               <p className="text-white text-sm font-medium drop-shadow-md">{captions[index]}</p>
             </div>
@@ -59,42 +125,53 @@ const ImageCarousel = ({ urls, captions, getProcessedImageUrl }: { urls: string[
         </motion.div>
       </AnimatePresence>
       
-      {/* Refresh Button */}
-      <button 
-        onClick={handleRefresh}
-        className="absolute top-6 left-6 z-20 p-2 bg-slate-900/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-900 border border-white/10"
-        title="Refresh Image"
-      >
-        <RefreshCw className="w-4 h-4" />
-      </button>
+      {/* HUD Overlay */}
+      <div className="absolute inset-0 pointer-events-none z-[100]">
+        {/* Navigation Arrows - 50% smaller as requested */}
+        <div className="absolute inset-y-0 left-0 w-16 flex items-center justify-start pl-4 pointer-events-none">
+          {showPrevArrow && (
+            <button 
+              onClick={prev}
+              className="p-2.5 bg-black/60 hover:bg-black/90 backdrop-blur-xl rounded-full text-white transition-all border border-white/40 shadow-2xl pointer-events-auto active:scale-95 group/btn"
+              title="Previous (A / Left Arrow)"
+            >
+              <ChevronLeft className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+            </button>
+          )}
+        </div>
+        <div className="absolute inset-y-0 right-0 w-16 flex items-center justify-end pr-4 pointer-events-none">
+          {showNextArrow && (
+            <button 
+              onClick={next}
+              className="p-2.5 bg-black/60 hover:bg-black/90 backdrop-blur-xl rounded-full text-white transition-all border border-white/40 shadow-2xl pointer-events-auto active:scale-95 group/btn"
+              title="Next (D / Right Arrow)"
+            >
+              <ChevronRight className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+            </button>
+          )}
+        </div>
 
-      {urls.length > 1 && (
-        <>
-          <button 
-            onClick={prev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-slate-900/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-900 border border-white/10"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-          <button 
-            onClick={next}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-slate-900/60 backdrop-blur-md rounded-full text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-900 border border-white/10"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+        {/* Top Controls Removed (Refresh and Solo Image) as requested */}
+
+        {/* Progress Overlay */}
+        {urls.length > 1 && (
+          <div className="absolute top-6 right-6 bg-black/80 backdrop-blur-xl px-4 py-2 rounded-full text-sm font-black text-white border border-white/20 shadow-2xl">
+            {index + 1} / {urls.length}
+          </div>
+        )}
+
+        {/* Visual Indicators for Multiple Images */}
+        {urls.length > 1 && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-3">
             {urls.map((_, i) => (
               <div 
                 key={i} 
-                className={`w-2 h-2 rounded-full transition-all ${i === index ? 'bg-white w-6' : 'bg-white/40'}`}
+                className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${i === index ? 'bg-white w-10 shadow-[0_0_15px_rgba(255,255,255,0.8)]' : 'bg-white/20 hover:bg-white/40'}`}
               />
             ))}
           </div>
-          <div className="absolute top-6 right-6 bg-slate-900/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white border border-white/10">
-            {index + 1} / {urls.length}
-          </div>
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 };
@@ -105,8 +182,42 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
   const [activeTip, setActiveTip] = useState<Tip | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [gremlinPage, setGremlinPage] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const node = nodes.find((n) => n.id === currentNodeId);
+  const isThumbnailNode = node?.type === NodeType.THUMBNAIL;
+
+  // Auto-expand if node has no content/title or is a THUMBNAIL type
+  useEffect(() => {
+    if (node && (!node.content && !node.title || isThumbnailNode)) {
+      setIsExpanded(true);
+    }
+  }, [node?.id, isThumbnailNode]);
+
+  const toggleExpand = () => setIsExpanded(!isExpanded);
+
+  // Global Keyboard Navigation (for templates without ImageCarousel like ONLY_TEXT)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      if (node?.template !== TemplateType.ONLY_TEXT) return;
+
+      const key = e.key.toLowerCase();
+      const code = e.code;
+      const isRight = key === 'd' || code === 'ArrowRight';
+      const isLeft = key === 'a' || code === 'ArrowLeft';
+
+      if (isRight) {
+        const primaryChoice = node.choices.find(c => c.targetNodeId);
+        if (primaryChoice?.targetNodeId) handleNavigate(primaryChoice.targetNodeId);
+      } else if (isLeft && history.length > 0) {
+        handleGoBack();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [node?.id, node?.template, node?.choices, history]);
 
   // Handle Tip Timer
   useEffect(() => {
@@ -142,8 +253,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
   const getProcessedImageUrl = (url: string) => {
     if (!url) return 'https://picsum.photos/seed/placeholder/800/600';
     
-    // Handle Google Drive links by converting to direct download/thumbnail links
-    // We use the thumbnail endpoint as it's the most reliable for embedding in web apps
+    // Handle Google Drive links by converting to thumbnail links
     const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([^\/&?]+)/);
     if (driveMatch) {
       return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1600`;
@@ -180,9 +290,10 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
     setDirection(targetNode.type === NodeType.BACK ? -1 : 1);
 
     // Only add to history if:
-    // 1. The current node is a normal STORY, LEVEL, ARTEFACT, or SUCCESS node
+    // 1. The current node is a standard content node
     // 2. The target node is NOT a BACK node
-    if (node && (node.type === NodeType.STORY || node.type === NodeType.LEVEL || node.type === NodeType.ARTEFACT || node.type === NodeType.SUCCESS) && targetNode.type !== NodeType.BACK) {
+    const historyTypes = [NodeType.STORY, NodeType.LEVEL, NodeType.ARTEFACT, NodeType.SUCCESS, NodeType.THUMBNAIL];
+    if (node && historyTypes.includes(node.type) && targetNode.type !== NodeType.BACK) {
       setHistory(prev => [...prev, node.id]);
     }
     
@@ -215,6 +326,17 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
     .map(url => getProcessedImageUrl(url));
 
   const renderTemplate = () => {
+    const primaryChoice = node.choices.find(c => c.targetNodeId);
+    const handleNextNode = primaryChoice ? () => handleNavigate(primaryChoice.targetNodeId!) : undefined;
+    const handlePrevNode = history.length > 0 ? () => handleGoBack() : undefined;
+
+    const navProps = {
+      onPrevNode: handlePrevNode,
+      onNextNode: handleNextNode,
+      hasPrevNode: !!handlePrevNode,
+      hasNextNode: !!handleNextNode
+    };
+
     const sidebarChoices = node.choices
       .filter(c => c.position === 'sidebar')
       .map((choice) => (
@@ -311,20 +433,27 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
       return (
         <div className="flex flex-col h-full overflow-hidden relative">
           {renderHeader("top-6 left-6", true)}
-          <div className="flex-1 min-h-[200px] relative">
-            <ImageCarousel 
+          <div className="flex-1 relative bg-slate-950 overflow-hidden flex items-center justify-center p-[4vh]">
+            <div className={`relative w-full h-[92vh] rounded-xl overflow-hidden shadow-2xl ${isExpanded ? '' : 'border border-slate-800'}`}>
+              <ImageCarousel 
               urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
               captions={node.imageCaptions}
               getProcessedImageUrl={getProcessedImageUrl}
+              isExpanded={isExpanded}
+              onToggleExpand={toggleExpand}
+              {...navProps}
             />
           </div>
-          <div className="p-8 bg-slate-900 border-t border-slate-800 overflow-y-auto max-h-[60%] custom-scrollbar">
-            <h1 className="text-4xl font-bold mb-4 tracking-tight text-white">{node.title}</h1>
-            <p className="text-lg text-slate-300 mb-8 leading-relaxed max-w-3xl whitespace-pre-wrap">{node.content}</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
-              {bottomChoices}
+        </div>
+        {!isExpanded && (
+            <div className="p-8 bg-slate-900 border-t border-slate-800 overflow-y-auto max-h-[60%] custom-scrollbar">
+              <h1 className="text-4xl font-bold mb-4 tracking-tight text-white">{node.title}</h1>
+              <p className="text-lg text-slate-300 mb-8 leading-relaxed max-w-3xl whitespace-pre-wrap">{node.content}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4">
+                {bottomChoices}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       );
     }
@@ -334,16 +463,21 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
         <div className="flex flex-col h-full bg-slate-900 overflow-hidden relative">
           {renderHeader("top-6 left-6", true)}
           
-          <div className="flex-1 relative bg-black overflow-hidden">
-            <ImageCarousel 
+          <div className="flex-1 relative bg-slate-950 overflow-hidden flex items-center justify-center p-[4vh]">
+            <div className={`relative w-full h-[92vh] rounded-xl overflow-hidden shadow-2xl ${isExpanded ? '' : 'border border-slate-800'}`}>
+              <ImageCarousel 
               urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
               captions={node.imageCaptions}
               getProcessedImageUrl={getProcessedImageUrl}
+              isExpanded={isExpanded}
+              onToggleExpand={toggleExpand}
+              {...navProps}
             />
           </div>
+        </div>
 
-          {/* Tips line (if any) - Specific to Cinematic Template */}
-          {node.tips && node.tips.length > 0 && (
+        {/* Tips line (if any) - Specific to Cinematic Template */}
+          {node.tips && node.tips.length > 0 && !isExpanded && (
             <div className="h-12 bg-slate-950/80 backdrop-blur-md border-y border-slate-800 flex items-center px-6 gap-6 z-20 flex-shrink-0">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Notices</span>
               <div className="flex items-center gap-3">
@@ -385,11 +519,13 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
             </div>
           )}
 
-          <div className="flex-shrink-0 p-6 bg-slate-900/50 border-t border-slate-800/50">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
-              {bottomChoices}
+          {!isExpanded && (
+            <div className="flex-shrink-0 p-6 bg-slate-900/50 border-t border-slate-800/50">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
+                {bottomChoices}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       );
     }
@@ -400,46 +536,53 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
           {/* Top Section: Sidebar + Image */}
           <div className="flex flex-1 min-h-0">
             {/* Sidebar (1/4) */}
-            <div className="w-1/4 border-r border-slate-800 flex flex-col bg-slate-900/50">
-              <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-                <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Links</h2>
+            {!isExpanded && (
+              <div className="w-1/4 border-r border-slate-800 flex flex-col bg-slate-900/50">
+                <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+                  <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Links</h2>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                  {sidebarChoices.length > 0 ? sidebarChoices : (
+                    <div className="py-8 text-center">
+                      <p className="text-[10px] text-slate-600 uppercase tracking-widest">No sidebar links</p>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {sidebarChoices.length > 0 ? sidebarChoices : (
-                  <div className="py-8 text-center">
-                    <p className="text-[10px] text-slate-600 uppercase tracking-widest">No sidebar links</p>
-                  </div>
-                )}
-              </div>
-            </div>
+            )}
 
-            {/* Image Area (3/4) */}
-            <div className="flex-1 relative bg-slate-950 overflow-hidden flex items-center justify-center p-8">
-              <div className="relative w-full h-full max-h-[500px] rounded-xl overflow-hidden shadow-2xl border border-slate-800">
+            {/* Image Area with 8% margin height */}
+            <div className={`flex-1 relative bg-slate-950 overflow-hidden flex items-center justify-center ${isThumbnailNode ? 'p-0' : 'p-[4vh]'}`}>
+              <div className={`relative w-full h-[92vh] rounded-xl overflow-hidden shadow-2xl ${isThumbnailNode || isExpanded ? '' : 'border border-slate-800'}`}>
                 {renderHeader("top-4 left-4", true)}
                 <ImageCarousel 
                   urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
                   captions={node.imageCaptions}
                   getProcessedImageUrl={getProcessedImageUrl}
+                  isExpanded={isExpanded}
+                  onToggleExpand={toggleExpand}
+                  {...navProps}
                 />
               </div>
             </div>
           </div>
           
           {/* Bottom Section (Full Width) */}
-          <div className="p-8 bg-slate-900 border-t border-slate-800 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
-            <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-3xl font-bold mb-2 tracking-tight text-white">{node.title}</h1>
-                  <p className="text-base text-slate-400 leading-relaxed whitespace-pre-wrap line-clamp-2">{node.content}</p>
+          {!isExpanded && (
+            <div className="p-8 bg-slate-900 border-t border-slate-800 shrink-0 shadow-[0_-10px_30px_rgba(0,0,0,0.3)]">
+              <div className="max-w-7xl mx-auto">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+                  <div className="flex-1 min-w-0">
+                    <h1 className="text-3xl font-bold mb-2 tracking-tight text-white">{node.title}</h1>
+                    <p className="text-base text-slate-400 leading-relaxed whitespace-pre-wrap line-clamp-2">{node.content}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {bottomChoices}
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {bottomChoices}
-              </div>
             </div>
-          </div>
+          )}
         </div>
       );
     }
@@ -448,21 +591,28 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
     return (
       <div className="grid grid-cols-1 lg:grid-cols-2 h-full gap-8 p-8 overflow-hidden bg-slate-900 relative">
         {renderHeader("top-8 left-8", false)}
-        <div className="flex flex-col overflow-y-auto pr-4 custom-scrollbar">
-          <div className="my-auto py-8">
-            <h1 className="text-5xl font-bold mb-6 tracking-tight text-white">{node.title}</h1>
-            <p className="text-xl text-slate-300 mb-12 leading-relaxed whitespace-pre-wrap">{node.content}</p>
-            <div className="space-y-4">
-              {bottomChoices}
+        {!isExpanded && (
+          <div className="flex flex-col overflow-y-auto pr-4 custom-scrollbar">
+            <div className="my-auto py-8">
+              <h1 className="text-5xl font-bold mb-6 tracking-tight text-white">{node.title}</h1>
+              <p className="text-xl text-slate-300 mb-12 leading-relaxed whitespace-pre-wrap">{node.content}</p>
+              <div className="space-y-4">
+                {bottomChoices}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-slate-800 hidden lg:block">
-          <ImageCarousel 
-            urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
-            captions={node.imageCaptions}
-            getProcessedImageUrl={getProcessedImageUrl}
-          />
+        )}
+        <div className={`relative rounded-2xl overflow-hidden shadow-2xl border border-slate-800 flex items-center justify-center bg-slate-950 ${isExpanded || isThumbnailNode ? 'lg:col-span-2' : 'hidden lg:block'}`}>
+          <div className="w-full h-[92vh] p-[4vh]">
+            <ImageCarousel 
+              urls={node.imageUrls && node.imageUrls.length > 0 ? node.imageUrls : [node.imageUrl]} 
+              captions={node.imageCaptions}
+              getProcessedImageUrl={getProcessedImageUrl}
+              isExpanded={isExpanded}
+              onToggleExpand={toggleExpand}
+              {...navProps}
+            />
+          </div>
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent pointer-events-none" />
         </div>
       </div>
@@ -474,13 +624,16 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4 md:p-12"
+      className={`fixed inset-0 z-50 bg-slate-950 flex items-center justify-center transition-all duration-500 ${
+        isExpanded || isThumbnailNode ? 'p-0' : 'p-4 md:p-12'
+      }`}
     >
+      {/* Global Go Back Button - Outside image, top left corner */}
       {history.length > 0 && (
         <button 
           onClick={handleGoBack}
-          className="absolute top-8 left-8 z-50 p-3 rounded-full bg-slate-800/50 hover:bg-slate-700 text-slate-300 transition-colors"
-          title="Go back"
+          className="absolute top-8 left-8 z-[150] p-3 rounded-full bg-black/40 backdrop-blur-md hover:bg-black border border-white/10 text-white transition-all shadow-2xl flex items-center justify-center"
+          title="Go Back (A / Left Arrow)"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
@@ -488,7 +641,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
 
       <button 
         onClick={onClose}
-        className="absolute top-8 right-8 z-50 p-3 rounded-full bg-slate-800/50 hover:bg-slate-700 text-slate-300 transition-colors"
+        className="absolute top-8 right-8 z-[150] p-3 rounded-full bg-black/40 backdrop-blur-md hover:bg-black border border-white/10 text-white transition-all shadow-2xl"
       >
         <X className="w-6 h-6" />
       </button>
@@ -496,7 +649,11 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="w-full max-w-6xl h-full max-h-[800px] bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-800 relative"
+        className={`w-full h-full bg-slate-900 overflow-hidden relative shadow-2xl transition-all duration-500 ${
+          isExpanded || isThumbnailNode 
+            ? 'max-w-none max-h-none rounded-none border-none' 
+            : 'max-w-6xl max-h-[800px] rounded-2xl border border-slate-800'
+        }`}
       >
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.div
@@ -543,7 +700,7 @@ export const PlayMode: React.FC<PlayModeProps> = ({ nodes, currentNodeId, onNavi
         </div>
 
         {/* Tips Bar */}
-        {node.tips && node.tips.length > 0 && node.template !== TemplateType.CINEMATIC && (
+        {node.tips && node.tips.length > 0 && node.template !== TemplateType.CINEMATIC && !isExpanded && (
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-slate-950/80 backdrop-blur-md border-t border-slate-800 flex items-center px-6 gap-6 z-20">
             <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Notices</span>
             <div className="flex items-center gap-3">

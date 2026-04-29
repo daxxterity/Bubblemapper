@@ -42,10 +42,10 @@ const NodeComponent = memo(({
   const getProcessedImageUrl = (url: string) => {
     if (!url) return '';
     
-    // Fix Google Drive links
+    // Fix Google Drive links - using thumbnail endpoint for better CORS and performance
     const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|docs\.google\.com\/file\/d\/)([^\/&?]+)/);
     if (driveMatch) {
-      return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1600`;
+      return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
     }
     
     return url;
@@ -166,6 +166,74 @@ const NodeComponent = memo(({
         />
       )}
 
+      {/* Connectivity Markers */}
+      <Group y={height / 2}>
+        {/* Input Port (Left) */}
+        {!isThumbnail && (
+          <Group x={0}>
+            <Circle
+              radius={12}
+              fill="transparent"
+              onMouseUp={(e) => onEndConnection(node.id)}
+            />
+            <Circle
+              radius={6}
+              fill="#1e293b"
+              stroke="#3b82f6"
+              strokeWidth={1}
+              listening={false}
+            />
+          </Group>
+        )}
+
+        {/* Unified Hub Port for Thumbnails (Both In/Out centered) */}
+        {isThumbnail && (
+          <>
+            {/* Thumbnail In */}
+            <Group x={0}>
+              <Circle
+                radius={15}
+                fill="transparent"
+                onMouseUp={(e) => onEndConnection(node.id)}
+              />
+              <Circle
+                radius={5}
+                fill="#3b82f6"
+                opacity={0.4}
+                stroke="#fff"
+                strokeWidth={1}
+                listening={false}
+              />
+            </Group>
+            
+            {/* Thumbnail Out (Mapped to first choice) */}
+            <Group x={width}>
+              <Circle
+                radius={15}
+                fill="transparent"
+                onMouseDown={(e) => {
+                  e.cancelBubble = true;
+                  const firstChoice = node.choices[0];
+                  if (firstChoice) {
+                    onStartConnection(node.id, firstChoice.id);
+                  }
+                  onSelect(node, e.evt.shiftKey);
+                }}
+              />
+              <Circle
+                radius={5}
+                fill="#3b82f6"
+                opacity={0.4}
+                stroke="#fff"
+                strokeWidth={1}
+                listening={false}
+              />
+            </Group>
+          </>
+        )}
+      </Group>
+
+      {/* Standard Choice Markers (Hidden for Thumbnails) */}
       {!isThumbnail && node.choices.map((choice, i) => (
         <Group key={choice.id} y={50 + (i * 20)}>
           <Text
@@ -204,29 +272,6 @@ const NodeComponent = memo(({
           />
         </Group>
       ))}
-
-      {!isThumbnail && (
-        <Group x={0} y={height / 2}>
-          <Circle
-            x={0}
-            y={0}
-            radius={12}
-            fill="transparent"
-            onMouseUp={(e) => {
-              onEndConnection(node.id);
-            }}
-          />
-          <Circle
-            x={0}
-            y={0}
-            radius={6}
-            fill="#475569"
-            stroke="#3b82f6"
-            strokeWidth={1}
-            listening={false}
-          />
-        </Group>
-      )}
     </Group>
   );
 });
@@ -249,10 +294,13 @@ const ConnectionLine = memo(({ conn, fromNode, toNode }: ConnectionLineProps) =>
 
   const fromW = isFromBack ? 140 : (fromIsThumbnail ? (fromRatio === '16:9' ? 400 : 300) : 200);
   const toW = isToBack ? 140 : (toIsThumbnail ? (toRatio === '16:9' ? 400 : 300) : 200);
+  const fromH = isFromBack ? 60 : (fromIsThumbnail ? (fromRatio === '16:9' ? 225 : 400) : 120);
   const toH = isToBack ? 60 : (toIsThumbnail ? (toRatio === '16:9' ? 225 : 400) : 120);
 
   const startX = fromNode.x + fromW;
-  const startY = fromNode.y + 50 + (choiceIndex * 20);
+  const startY = fromIsThumbnail 
+    ? fromNode.y + (fromH / 2) 
+    : fromNode.y + 50 + (choiceIndex * 20);
   const endX = toNode.x;
   const endY = toNode.y + toH / 2;
 
