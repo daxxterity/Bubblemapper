@@ -109,7 +109,7 @@ const ImageCarousel = ({
           onClick={onToggleExpand}
         >
           <img 
-            src={getProcessedImageUrl(urls[index])} 
+            src={`${getProcessedImageUrl(urls[index])}${refreshKey > 0 ? (getProcessedImageUrl(urls[index]).includes('?') ? '&' : '?') + 'rev=' + refreshKey : ''}`} 
             alt={`Image ${index + 1}`} 
             className="w-full h-full object-contain bg-black/40 cursor-pointer"
             referrerPolicy="no-referrer"
@@ -151,11 +151,21 @@ const ImageCarousel = ({
           )}
         </div>
 
-        {/* Top Controls Removed (Refresh and Solo Image) as requested */}
+        {/* Subtle Refresh Icon - Visible but faint by default, pops on hover */}
+        <div className="absolute top-6 right-6 pointer-events-auto z-[110]">
+          <button 
+            onClick={handleRefresh}
+            className="flex items-center gap-2 p-2 bg-black/40 hover:bg-black/80 backdrop-blur-md rounded-lg text-white/50 hover:text-white transition-all border border-white/10 hover:border-white/30 shadow-xl active:scale-95 group/refresh"
+            title="Refresh Image from Server"
+          >
+            <RefreshCw className="w-4 h-4 group-hover/refresh:rotate-180 transition-transform duration-700" />
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-0 group-hover/refresh:opacity-100 transition-opacity whitespace-nowrap">Refresh</span>
+          </button>
+        </div>
 
-        {/* Progress Overlay */}
+        {/* Progress Overlay - Moved slightly to make room for refresh icon */}
         {urls.length > 1 && (
-          <div className="absolute top-6 right-6 bg-black/80 backdrop-blur-xl px-4 py-2 rounded-full text-sm font-black text-white border border-white/20 shadow-2xl">
+          <div className="absolute top-6 right-28 bg-black/80 backdrop-blur-xl px-4 py-2 rounded-full text-[10px] font-black text-white border border-white/20 shadow-2xl">
             {index + 1} / {urls.length}
           </div>
         )}
